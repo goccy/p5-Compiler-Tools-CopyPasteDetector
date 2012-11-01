@@ -50,7 +50,6 @@ sub _get_script {
     return $script;
 }
 
-use Data::Dumper;
 sub _get_stmt_data {
     my ($self, $filename, $script) = @_;
     my $stmts = Lexer::get_stmt_codes($filename, $script);
@@ -67,13 +66,15 @@ sub _get_stmt_data {
             my $start_line = $stmt->{start_line};
             my $end_line = $stmt->{end_line};
             my $line_num = $end_line - $start_line;
-            my $deparsed_stmt = {hash => md5_base64($code),
-                                 src => encode_base64($code, ""),
-                                 orig => $code,
-                                 file => $filename,
-                                 lines => ($line_num > 0) ? $line_num : 1,
-                                 start_line => $start_line,
-                                 end_line => $end_line};
+            my $deparsed_stmt = {
+                hash => md5_base64($code),
+                src => encode_base64($code, ""),
+                orig => $code,
+                file => $filename,
+                lines => ($line_num > 0) ? $line_num : 1,
+                start_line => $start_line,
+                end_line => $end_line
+            };
             my @tmp_deparsed_stmts = ();
             foreach (@deparsed_stmts) {
                 if (($_->{end_line}     == $deparsed_stmt->{start_line}) ||
@@ -82,13 +83,15 @@ sub _get_stmt_data {
                     $start_line = $_->{start_line};
                     $end_line = $deparsed_stmt->{end_line};
                     $line_num = $end_line - $start_line;
-                    my $added_stmt = {hash => md5_base64($src), #$src
-                                      src => encode_base64($src, ""),
-                                      orig => $src,
-                                      file => $filename,
-                                      lines => ($line_num > 0) ? $line_num : 1,
-                                      start_line => $start_line,
-                                      end_line => $end_line};
+                    my $added_stmt = {
+                        hash => md5_base64($src), #$src
+                        src => encode_base64($src, ""),
+                        orig => $src,
+                        file => $filename,
+                        lines => ($line_num > 0) ? $line_num : 1,
+                        start_line => $start_line,
+                        end_line => $end_line
+                    };
                     push(@tmp_deparsed_stmts, $added_stmt);
                 }
             }
@@ -133,17 +136,13 @@ sub display {
     my ($self, $scores) = @_;
     my @sorted_data = sort { $b->{score} <=> $a->{score} } @$scores;
     foreach my $data (@sorted_data) {
-        print "
-    score    : $data->{score}
-    location : [";
+        print "\n\tscore    : $data->{score}\n\tlocation : [";
         my $results = $data->{results};
         foreach (@$results) {
             print "$_->{file}, ($_->{start_line} ~ $_->{end_line}), ";
         }
         my $src = decode_base64($results->[0]->{src});
-        print "]
-    src      : ${src}
-";
+        print "]\n\tsrc      : ${src}\n";
     }
 }
 
