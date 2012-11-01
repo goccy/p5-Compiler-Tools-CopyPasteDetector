@@ -16,13 +16,11 @@ our @ISA = qw(Exporter);
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
 our %EXPORT_TAGS = ( 'all' => [ qw(
-	
 ) ] );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw(
-	
 );
 
 our $VERSION = '0.01';
@@ -39,7 +37,7 @@ use Compiler::Lexer;
 
 sub new {
     my $class = shift;
-    my $self = {};
+    my $self = {tmp => "__copy_paste_detector.tmp"};
     return bless($self, $class);
 }
 
@@ -52,15 +50,17 @@ sub _get_script {
     return $script;
 }
 
+use Data::Dumper;
 sub _get_stmt_data {
     my ($self, $filename, $script) = @_;
     my $stmts = Lexer::get_stmt_codes($filename, $script);
     my @deparsed_stmts;
+    my $tmp_file = $self->{tmp};
     foreach my $stmt (@$$stmts) {
-        open(FP, ">", "tmp.pl");
+        open(FP, ">", $tmp_file);
         print FP $stmt->{src};
         close(FP);
-        my $code = `perl -MList::Util -MCarp -MO=Deparse tmp.pl 2> /dev/null`;
+        my $code = `perl -MList::Util -MCarp -MO=Deparse $tmp_file 2> /dev/null`;
         chomp($code);
         next if ($code eq "" || $code eq ";\n");
         if ($code ne "'???';") { # B::Deparse's BUG [1; => '???';]
@@ -106,7 +106,7 @@ sub detect {
         my $stmt_data = $self->_get_stmt_data($file, _get_script($file));
         push(@stmts, @$stmt_data);
     }
-    unlink("tmp.pl");
+    unlink($self->{tmp});
     return \@stmts;
 }
 
@@ -123,7 +123,7 @@ sub get_score {
         my $hit = $#value;
         if ($hit > 0) {
             my $score = $hit * $value[0]->{lines};
-            push(@ret, {score => $score, results => $_});
+            push(@ret, {score => $score, results => $_}) if ($value[0]->{lines} > 3);
         }
     }
     return \@ret;
