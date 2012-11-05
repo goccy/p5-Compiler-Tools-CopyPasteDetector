@@ -148,9 +148,20 @@ sub __get_stmt_data {
         @parents = grep { $_->{lines} > $stmt->{lines} } @parents;
         push(@{$stmt->{parent}}, $_->{hash}) foreach (@parents);
     }
-
     unlink($tmp_file);
     return \@deparsed_stmts;
+}
+
+sub __match_parent_hash {
+    my ($self, $from_parent, $to_parent) = @_;
+    my $ret = 0;
+    foreach my $from (@$from_parent) {
+        if (grep { $from eq $_ } @$to_parent) {
+            $ret = 1;
+            last;
+        }
+    }
+    return $ret;
 }
 
 sub __is_exists_parent {
@@ -163,9 +174,7 @@ sub __is_exists_parent {
             my @from_parent = @{$v->{parent}};
             my @to_parent = @{$_->{parent}};
             next if ($v == $_);
-            if ($#from_parent >= 0 && $#to_parent >= 0 &&
-                $from_parent[-1] eq $to_parent[-1]) {
-            } else {
+            unless ($self->__match_parent_hash(\@from_parent, \@to_parent)) {
                 $ret = 0;
             }
         }

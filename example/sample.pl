@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use Compiler::Tools::CopyPasteDetector;
-my @files = qw();
+my @files = qw(example/CacheBak.pm);
 
 my $detector = CopyPasteDetector->new();
 my $data = $detector->detect(\@files);
