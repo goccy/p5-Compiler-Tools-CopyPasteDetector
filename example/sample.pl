@@ -1,7 +1,6 @@
 use strict;
 use warnings;
 use Compiler::Tools::CopyPasteDetector;
-
 my @files = qw();
 
 my $detector = CopyPasteDetector->new();

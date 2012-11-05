@@ -4,44 +4,80 @@ use 5.012004;
 use strict;
 use warnings;
 
+### =================== Exporter ======================== ###
 require Exporter;
-
 our @ISA = qw(Exporter);
-
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
-
-# This allows declaration	use CopyPasteDetector ':all';
-# If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
-# will save memory.
 our %EXPORT_TAGS = ( 'all' => [ qw(
 ) ] );
-
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
-
 our @EXPORT = qw(
 );
-
 our $VERSION = '0.01';
-
 require XSLoader;
 XSLoader::load('CopyPasteDetector', $VERSION);
 
-# Preloaded methods go here.
+### ============== Dependency Modules =================== ###
 
 use B::Deparse;
 use MIME::Base64;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 use Compiler::Lexer;
+use Data::Dumper;
+
+### ================ Public Methods ===================== ###
 
 sub new {
     my $class = shift;
-    my $self = {tmp => "__copy_paste_detector.tmp"};
+    my $self = {tmp => q{__copy_paste_detector.tmp}};
     return bless($self, $class);
 }
 
-sub _get_script {
+sub detect {
+    my ($self, $files) = @_;
+    my @stmts;
+    foreach my $file (@$files) {
+        my $stmt_data = $self->__get_stmt_data($file, __get_script($file));
+        push(@stmts, @$stmt_data);
+    }
+    return \@stmts;
+}
+
+sub get_score {
+    my ($self, $stmts) = @_;
+    my @deparsed_stmts = @$stmts;
+    my $results = {};
+    foreach my $stmt (@deparsed_stmts) {
+        push(@{$results->{$stmt->{hash}}}, $stmt);
+    }
+    my @ret;
+    foreach (values %$results) {
+        my @matched_values = @$_;
+        my $hit = $#matched_values;
+        if ($hit > 0) {
+            next if ($self->__is_exists_parent(\@matched_values));
+            my $score = $hit * $matched_values[0]->{lines};
+            push(@ret, {score => $score, results => $_}) if ($matched_values[0]->{lines} > 2);
+        }
+    }
+    return \@ret;
+}
+
+sub display {
+    my ($self, $scores) = @_;
+    my @sorted_data = sort { $b->{score} <=> $a->{score} } @$scores;
+    foreach my $data (@sorted_data) {
+        print "\n\tscore    : $data->{score}\n\tlocation : [";
+        my $results = $data->{results};
+        foreach (@$results) {
+            print "$_->{file}, ($_->{start_line} ~ $_->{end_line}), ";
+        }
+        my $src = decode_base64($results->[0]->{src});
+        print "]\n\tsrc      : ${src}\n";
+    }
+}
+
+### ================ Private Methods ===================== ###
+sub __get_script {
     my ($filename) = @_;
     my $script = "";
     open(FP, "<", $filename) or die("Error");
@@ -50,7 +86,7 @@ sub _get_script {
     return $script;
 }
 
-sub _get_stmt_data {
+sub __get_stmt_data {
     my ($self, $filename, $script) = @_;
     my $stmts = Lexer::get_stmt_codes($filename, $script);
     my @deparsed_stmts;
@@ -73,7 +109,8 @@ sub _get_stmt_data {
                 file => $filename,
                 lines => ($line_num > 0) ? $line_num : 1,
                 start_line => $start_line,
-                end_line => $end_line
+                end_line => $end_line,
+                parent => []
             };
             my @tmp_deparsed_stmts = ();
             foreach (@deparsed_stmts) {
@@ -83,14 +120,18 @@ sub _get_stmt_data {
                     $start_line = $_->{start_line};
                     $end_line = $deparsed_stmt->{end_line};
                     $line_num = $end_line - $start_line;
+                    my $new_hash = md5_base64($src);
+                    my $parent = $_->{parent};
+                    push(@$parent, $new_hash);
                     my $added_stmt = {
-                        hash => md5_base64($src), #$src
+                        hash => $new_hash,
                         src => encode_base64($src, ""),
                         orig => $src,
                         file => $filename,
                         lines => ($line_num > 0) ? $line_num : 1,
                         start_line => $start_line,
-                        end_line => $end_line
+                        end_line => $end_line,
+                        parent => []
                     };
                     push(@tmp_deparsed_stmts, $added_stmt);
                 }
@@ -99,51 +140,37 @@ sub _get_stmt_data {
             push(@deparsed_stmts, @tmp_deparsed_stmts);
         }
     }
+
+    foreach my $stmt (@deparsed_stmts) {
+        my $start_line = $stmt->{start_line};
+        my $lines = $stmt->{lines};
+        my @parents = grep { $_->{start_line} == $start_line - ($_->{lines} - $lines) } @deparsed_stmts;
+        @parents = grep { $_->{lines} > $stmt->{lines} } @parents;
+        push(@{$stmt->{parent}}, $_->{hash}) foreach (@parents);
+    }
+
+    unlink($tmp_file);
     return \@deparsed_stmts;
 }
 
-sub detect {
-    my ($self, $files) = @_;
-    my @stmts;
-    foreach my $file (@$files) {
-        my $stmt_data = $self->_get_stmt_data($file, _get_script($file));
-        push(@stmts, @$stmt_data);
-    }
-    unlink($self->{tmp});
-    return \@stmts;
-}
-
-sub get_score {
-    my ($self, $stmts) = @_;
-    my @deparsed_stmts = @$stmts;
-    my $results = {};
-    foreach my $stmt (@deparsed_stmts) {
-        push(@{$results->{$stmt->{hash}}}, $stmt);
-    }
-    my @ret;
-    foreach (values %$results) {
-        my @value = @$_;
-        my $hit = $#value;
-        if ($hit > 0) {
-            my $score = $hit * $value[0]->{lines};
-            push(@ret, {score => $score, results => $_}) if ($value[0]->{lines} > 3);
+sub __is_exists_parent {
+    my ($self, $matched_values) = @_;
+    my @matched_values = @$matched_values;
+    my @copied_matched_values = @matched_values;
+    my $ret = 1;
+    foreach my $v (@matched_values) {
+        foreach (@copied_matched_values) {
+            my @from_parent = @{$v->{parent}};
+            my @to_parent = @{$_->{parent}};
+            next if ($v == $_);
+            if ($#from_parent >= 0 && $#to_parent >= 0 &&
+                $from_parent[-1] eq $to_parent[-1]) {
+            } else {
+                $ret = 0;
+            }
         }
     }
-    return \@ret;
-}
-
-sub display {
-    my ($self, $scores) = @_;
-    my @sorted_data = sort { $b->{score} <=> $a->{score} } @$scores;
-    foreach my $data (@sorted_data) {
-        print "\n\tscore    : $data->{score}\n\tlocation : [";
-        my $results = $data->{results};
-        foreach (@$results) {
-            print "$_->{file}, ($_->{start_line} ~ $_->{end_line}), ";
-        }
-        my $src = decode_base64($results->[0]->{src});
-        print "]\n\tsrc      : ${src}\n";
-    }
+    return $ret;
 }
 
 1;
