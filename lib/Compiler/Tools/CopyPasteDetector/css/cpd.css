@@ -12,7 +12,7 @@ body, html {
 }
 
 .cpd-main {
-    padding-bottom: 90px;
+    padding-bottom: 120px;
     height: auto;
 }
 
@@ -98,7 +98,7 @@ body, html {
 .footer {
     position: absolute;
     bottom: 0px;
-    height: 60px;
+    height: 80px;
     width: 100%;/*99.3%;*/
     left: 2px;
     color: white;
@@ -107,4 +107,6 @@ body, html {
 }
 
 .footer p {
+    position:relative;
+    top:20px;
 }
