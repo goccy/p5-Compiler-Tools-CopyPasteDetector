@@ -7,11 +7,9 @@ use warnings;
 ### =================== Exporter ======================== ###
 require Exporter;
 our @ISA = qw(Exporter);
-our %EXPORT_TAGS = ( 'all' => [ qw(
-) ] );
+our %EXPORT_TAGS = ( 'all' => [ qw() ] );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
-our @EXPORT = qw(
-);
+our @EXPORT = qw();
 our $VERSION = '0.01';
 require XSLoader;
 XSLoader::load('CopyPasteDetector', $VERSION);
@@ -22,6 +20,7 @@ use B::Deparse;
 use MIME::Base64;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 use Compiler::Lexer;
+use HTML::Template;
 use Data::Dumper;
 
 ### ================ Public Methods ===================== ###
@@ -181,6 +180,44 @@ sub __is_exists_parent {
         }
     }
     return $ret;
+}
+
+use File::Copy::Recursive qw(rcopy);
+
+sub gen_html {
+    my ($self, $scores) = @_;
+    my @sorted_data = sort { $b->{score} <=> $a->{score} } @$scores;
+    my @cpd_main_table;
+    foreach my $data (@sorted_data) {
+        my @locations;
+        my $results = $data->{results};
+        foreach (@$results) {
+            push(@locations, {
+                file       => $_->{file},
+                start_line => $_->{start_line},
+                end_line   => $_->{end_line}
+            });
+        }
+        my $score = $data->{score};
+        my $src = decode_base64($results->[0]->{src});
+        push(@cpd_main_table, {
+            score => $score,
+            location => \@locations,
+            src => $src
+        });
+    }
+    my $library_path = $INC{"Compiler/Tools/CopyPasteDetector.pm"};
+    $library_path =~ s/\.pm//;
+    my $output_dir = "copy_paste_detector_output";
+    mkdir($output_dir);
+    rcopy($library_path . "/js", $output_dir . "/js");
+    rcopy($library_path . "/css", $output_dir . "/css");
+    rcopy($library_path . "/images", $output_dir . "/images");
+    open(FP, ">", "${output_dir}/index.html");
+    my $tmpl = HTML::Template->new(filename => "$library_path/index.tmpl");
+    $tmpl->param({cpd_main_table => \@cpd_main_table});
+    print FP $tmpl->output;
+    close(FP);
 }
 
 1;
