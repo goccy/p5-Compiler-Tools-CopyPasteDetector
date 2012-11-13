@@ -36,6 +36,7 @@ sub detect {
     my ($self, $files) = @_;
     my @stmts;
     foreach my $file (@$files) {
+        print $file, "\n";
         my $stmt_data = $self->__get_stmt_data($file, __get_script($file));
         push(@stmts, @$stmt_data);
     }
