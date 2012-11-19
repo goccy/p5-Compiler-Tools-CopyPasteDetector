@@ -21,7 +21,14 @@ use MIME::Base64;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 use Compiler::Lexer;
 use HTML::Template;
+use File::Copy::Recursive qw(rcopy);
 use Data::Dumper;
+
+### ================== Constants ======================== ###
+
+# B::Deparse's BUG [1; => '???';]
+my $DEPARSE_ERROR_MESSAGE = "'???';";
+
 
 ### ================ Public Methods ===================== ###
 
@@ -76,6 +83,42 @@ sub display {
     }
 }
 
+sub gen_html {
+    my ($self, $scores) = @_;
+    my @sorted_data = sort { $b->{score} <=> $a->{score} } @$scores;
+    my @cpd_main_table;
+    foreach my $data (@sorted_data) {
+        my @locations;
+        my $results = $data->{results};
+        foreach (@$results) {
+            push(@locations, {
+                file       => $_->{file},
+                start_line => $_->{start_line},
+                end_line   => $_->{end_line}
+            });
+        }
+        my $score = $data->{score};
+        my $src = decode_base64($results->[0]->{src});
+        push(@cpd_main_table, {
+            score => $score,
+            location => \@locations,
+            src => $src
+        });
+    }
+    my $library_path = $INC{"Compiler/Tools/CopyPasteDetector.pm"};
+    $library_path =~ s/\.pm//;
+    my $output_dir = "copy_paste_detector_output";
+    mkdir($output_dir);
+    rcopy($library_path . "/js", $output_dir . "/js");
+    rcopy($library_path . "/css", $output_dir . "/css");
+    rcopy($library_path . "/images", $output_dir . "/images");
+    open(FP, ">", "$output_dir/index.html");
+    my $tmpl = HTML::Template->new(filename => "$library_path/index.tmpl");
+    $tmpl->param({cpd_main_table => \@cpd_main_table});
+    print FP $tmpl->output;
+    close(FP);
+}
+
 ### ================ Private Methods ===================== ###
 sub __get_script {
     my ($filename) = @_;
@@ -91,6 +134,7 @@ sub __get_stmt_data {
     my $stmts = Lexer::get_stmt_codes($filename, $script);
     my @deparsed_stmts;
     my $tmp_file = $self->{tmp};
+    my $stmt_num = 0;
     foreach my $stmt (@$$stmts) {
         open(FP, ">", $tmp_file);
         print FP $stmt->{src};
@@ -98,46 +142,52 @@ sub __get_stmt_data {
         my $code = `perl -MList::Util -MCarp -MO=Deparse $tmp_file 2> /dev/null`;
         chomp($code);
         next if ($code eq "" || $code eq ";\n");
-        if ($code ne "'???';") { # B::Deparse's BUG [1; => '???';]
+        if ($code ne $DEPARSE_ERROR_MESSAGE) {
             my $start_line = $stmt->{start_line};
             my $end_line = $stmt->{end_line};
+            my $indent = $stmt->{indent};
             my $line_num = $end_line - $start_line;
             my $deparsed_stmt = {
-                hash => md5_base64($code),
-                src => encode_base64($code, ""),
-                orig => $code,
-                file => $filename,
-                lines => ($line_num > 0) ? $line_num : 1,
+                hash       => md5_base64($code),
+                src        => encode_base64($code, ""),
+                orig       => $code,
+                file       => $filename,
+                lines      => ($line_num > 0) ? $line_num : 1,
                 start_line => $start_line,
-                end_line => $end_line,
-                parent => []
+                end_line   => $end_line,
+                indent     => $indent,
+                stmt_num   => $stmt_num,
+                parent     => []
             };
             my @tmp_deparsed_stmts = ();
             foreach (@deparsed_stmts) {
-                if (($_->{end_line}     == $deparsed_stmt->{start_line}) ||
-                    ($_->{end_line} + 1 == $deparsed_stmt->{start_line})) {
+#                if (($_->{end_line}     == $start_line) ||
+#                    ($_->{end_line} + 1 == $start_line)) {
+                if ($_->{stmt_num} + 1 == $stmt_num && $_->{indent} == $indent) {
                     my $src = $_->{orig} . "\n" . $deparsed_stmt->{orig};
                     $start_line = $_->{start_line};
-                    $end_line = $deparsed_stmt->{end_line};
                     $line_num = $end_line - $start_line;
                     my $new_hash = md5_base64($src);
                     my $parent = $_->{parent};
                     push(@$parent, $new_hash);
                     my $added_stmt = {
-                        hash => $new_hash,
-                        src => encode_base64($src, ""),
-                        orig => $src,
-                        file => $filename,
-                        lines => ($line_num > 0) ? $line_num : 1,
+                        hash       => $new_hash,
+                        src        => encode_base64($src, ""),
+                        orig       => $src,
+                        file       => $filename,
+                        lines      => ($line_num > 0) ? $line_num : 1,
                         start_line => $start_line,
-                        end_line => $end_line,
-                        parent => []
+                        end_line   => $end_line,
+                        indent     => $indent,
+                        stmt_num   => $stmt_num,
+                        parent     => []
                     };
                     push(@tmp_deparsed_stmts, $added_stmt);
                 }
             }
             push(@deparsed_stmts, $deparsed_stmt);
             push(@deparsed_stmts, @tmp_deparsed_stmts);
+            $stmt_num++;
         }
     }
 
@@ -180,44 +230,6 @@ sub __is_exists_parent {
         }
     }
     return $ret;
-}
-
-use File::Copy::Recursive qw(rcopy);
-
-sub gen_html {
-    my ($self, $scores) = @_;
-    my @sorted_data = sort { $b->{score} <=> $a->{score} } @$scores;
-    my @cpd_main_table;
-    foreach my $data (@sorted_data) {
-        my @locations;
-        my $results = $data->{results};
-        foreach (@$results) {
-            push(@locations, {
-                file       => $_->{file},
-                start_line => $_->{start_line},
-                end_line   => $_->{end_line}
-            });
-        }
-        my $score = $data->{score};
-        my $src = decode_base64($results->[0]->{src});
-        push(@cpd_main_table, {
-            score => $score,
-            location => \@locations,
-            src => $src
-        });
-    }
-    my $library_path = $INC{"Compiler/Tools/CopyPasteDetector.pm"};
-    $library_path =~ s/\.pm//;
-    my $output_dir = "copy_paste_detector_output";
-    mkdir($output_dir);
-    rcopy($library_path . "/js", $output_dir . "/js");
-    rcopy($library_path . "/css", $output_dir . "/css");
-    rcopy($library_path . "/images", $output_dir . "/images");
-    open(FP, ">", "${output_dir}/index.html");
-    my $tmpl = HTML::Template->new(filename => "$library_path/index.tmpl");
-    $tmpl->param({cpd_main_table => \@cpd_main_table});
-    print FP $tmpl->output;
-    close(FP);
 }
 
 1;
