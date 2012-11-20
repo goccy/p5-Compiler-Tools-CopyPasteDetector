@@ -62,8 +62,10 @@ sub get_score {
         my $hit = $#matched_values;
         if ($hit > 0) {
             next if ($self->__is_exists_parent(\@matched_values));
-            my $score = $hit * $matched_values[0]->{lines};
-            push(@ret, {score => $score, results => $_}) if ($matched_values[0]->{lines} > 2);
+            my $score = $hit * $matched_values[0]->{token_num};
+            if ($matched_values[0]->{lines} > 2 || $matched_values[0]->{token_num} > 60) {
+                push(@ret, {score => $score, results => $_})
+            }
         }
     }
     return \@ret;
@@ -145,7 +147,9 @@ sub __get_stmt_data {
         if ($code ne $DEPARSE_ERROR_MESSAGE) {
             my $start_line = $stmt->{start_line};
             my $end_line = $stmt->{end_line};
+            my $token_num = $stmt->{token_num};
             my $indent = $stmt->{indent};
+            my $block_id = $stmt->{block_id};
             my $line_num = $end_line - $start_line;
             my $deparsed_stmt = {
                 hash       => md5_base64($code),
@@ -156,14 +160,17 @@ sub __get_stmt_data {
                 start_line => $start_line,
                 end_line   => $end_line,
                 indent     => $indent,
+                block_id   => $block_id,
                 stmt_num   => $stmt_num,
+                token_num  => $token_num,
                 parent     => []
             };
             my @tmp_deparsed_stmts = ();
             foreach (@deparsed_stmts) {
 #                if (($_->{end_line}     == $start_line) ||
 #                    ($_->{end_line} + 1 == $start_line)) {
-                if ($_->{stmt_num} + 1 == $stmt_num && $_->{indent} == $indent) {
+                if ($_->{stmt_num} + 1 == $stmt_num && $_->{indent} == $indent &&
+                    $_->{block_id} == $block_id) {
                     my $src = $_->{orig} . "\n" . $deparsed_stmt->{orig};
                     $start_line = $_->{start_line};
                     $line_num = $end_line - $start_line;
@@ -179,7 +186,9 @@ sub __get_stmt_data {
                         start_line => $start_line,
                         end_line   => $end_line,
                         indent     => $indent,
+                        block_id   => $block_id,
                         stmt_num   => $stmt_num,
+                        token_num  => $_->{token_num} + $token_num,
                         parent     => []
                     };
                     push(@tmp_deparsed_stmts, $added_stmt);
