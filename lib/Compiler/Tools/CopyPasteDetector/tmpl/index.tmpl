@@ -7,6 +7,7 @@
     <meta name="description" content=""/>
     <link rel="stylesheet" type="text/css" href="css/cpd.css"/>
     <link rel="stylesheet" type="text/css" href="css/jquery.snippet.min.css"/>
+    <link rel="stylesheet" type="text/css" href="css/jquery-bubble-popup-v3.css"/>
   </head>
   <body>
     <div class="cpd-container">
@@ -17,14 +18,32 @@
           <TMPL_LOOP NAME=cpd_main_table>
             <tr>
               <td><TMPL_VAR NAME=score></td>
-              <td>
-                <TMPL_LOOP NAME=location>
+              <TMPL_IF NAME=capacity_over>
+                <td class="cpd-hit">
                   <ul>
-                    <li><TMPL_VAR NAME=file> : <TMPL_VAR NAME=start_line> ~ <TMPL_VAR NAME=end_line></li>
+                    <TMPL_LOOP NAME=short_location>
+                      <li><TMPL_VAR NAME=file> : <TMPL_VAR NAME=start_line> ~ <TMPL_VAR NAME=end_line></li>
+                    </TMPL_LOOP>
+                    <li>.....</li>
                   </ul>
-                </TMPL_LOOP>
-              </td>
-              <td><pre><code><TMPL_VAR NAME=src></code></pre></td>
+                  <div class="cpd-location">
+                    <ul>
+                      <TMPL_LOOP NAME=location>
+                        <li><TMPL_VAR NAME=file> : <TMPL_VAR NAME=start_line> ~ <TMPL_VAR NAME=end_line></li>
+                      </TMPL_LOOP>
+                    </ul>
+                  </div>
+                </td>
+              <TMPL_ELSE>
+                <td>
+                  <ul>
+                    <TMPL_LOOP NAME=location>
+                      <li><TMPL_VAR NAME=file> : <TMPL_VAR NAME=start_line> ~ <TMPL_VAR NAME=end_line></li>
+                    </TMPL_LOOP>
+                  </ul>
+                </td>
+              </TMPL_IF>
+              <td><pre class="<TMPL_VAR NAME=class>"><code><TMPL_VAR NAME=src></code></pre></td>
             </tr>
           </TMPL_LOOP>
         </table>
@@ -35,6 +54,7 @@
     </div>
     <script type="text/javascript" src="js/jquery.js"></script>
     <script type="text/javascript" src="js/jquery.snippet.min.js"></script>
+    <script type="text/javascript" src="js/jquery-bubble-popup-v3.min.js"></script>
     <script type="text/javascript" src="js/cpd.js"></script>
   </body>
 </html>

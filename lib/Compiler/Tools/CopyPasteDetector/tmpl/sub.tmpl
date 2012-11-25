@@ -1,0 +1,31 @@
+<TMPL_LOOP NAME=cpd_sub_table>
+  <tr>
+    <td><TMPL_VAR NAME=score></td>
+    <TMPL_IF NAME=capacity_over>
+      <td class="cpd-hit">
+        <ul>
+          <TMPL_LOOP NAME=short_location>
+            <li><TMPL_VAR NAME=file> : <TMPL_VAR NAME=start_line> ~ <TMPL_VAR NAME=end_line></li>
+          </TMPL_LOOP>
+          <li>.....</li>
+        </ul>
+        <div class="cpd-location">
+          <ul>
+            <TMPL_LOOP NAME=location>
+              <li><TMPL_VAR NAME=file> : <TMPL_VAR NAME=start_line> ~ <TMPL_VAR NAME=end_line></li>
+            </TMPL_LOOP>
+          </ul>
+        </div>
+      </td>
+    <TMPL_ELSE>
+      <td>
+        <ul>
+          <TMPL_LOOP NAME=location>
+            <li><TMPL_VAR NAME=file> : <TMPL_VAR NAME=start_line> ~ <TMPL_VAR NAME=end_line></li>
+          </TMPL_LOOP>
+        </ul>
+      </td>
+    </TMPL_IF>
+    <td><pre class="<TMPL_VAR NAME=class>"><code><TMPL_VAR NAME=src></code></pre></td>
+  </tr>
+</TMPL_LOOP>

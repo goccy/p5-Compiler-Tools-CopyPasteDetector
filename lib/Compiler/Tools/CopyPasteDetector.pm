@@ -28,7 +28,7 @@ use Data::Dumper;
 
 # B::Deparse's BUG [1; => '???';]
 my $DEPARSE_ERROR_MESSAGE = "'???';";
-
+my $MAX_ROW_NUM_PER_PAGE = 100;
 
 ### ================ Public Methods ===================== ###
 
@@ -101,27 +101,85 @@ sub gen_html {
         }
         my $score = $data->{score};
         my $src = decode_base64($results->[0]->{src});
-        push(@cpd_main_table, {
-            score => $score,
-            location => \@locations,
-            src => $src
-        });
+        if ($#locations > 3) {
+            my @short_location = @locations[0 .. 3];
+            push(@cpd_main_table, {
+                score => $score,
+                capacity_over => 1,
+                short_location => \@short_location,
+                location => \@locations,
+                src => $src
+            });
+        } else {
+            push(@cpd_main_table, {
+                score => $score,
+                capacity_over => 0,
+                location => \@locations,
+                src => $src
+            });
+        }
     }
+
     my $library_path = $INC{"Compiler/Tools/CopyPasteDetector.pm"};
     $library_path =~ s/\.pm//;
     my $output_dir = "copy_paste_detector_output";
     mkdir($output_dir);
-    rcopy($library_path . "/js", $output_dir . "/js");
-    rcopy($library_path . "/css", $output_dir . "/css");
+    my $sub_contents_num = $#cpd_main_table / $MAX_ROW_NUM_PER_PAGE;
+    my @cpd_contents;
+    for (my $i = 1; $i < $sub_contents_num; $i++) {
+        my $start = $i * $MAX_ROW_NUM_PER_PAGE + 1;
+        my $end = ($i + 1) * $MAX_ROW_NUM_PER_PAGE;
+        $end = $#cpd_main_table if ($end > $#cpd_main_table);
+        my @cpd_sub_table = @cpd_main_table[$start .. $end];
+        my $name = "sub_contents$i.html";
+        push(@cpd_contents, {name => $name});
+        foreach (@cpd_sub_table) {
+            $name =~ s/.html$//;
+            $_->{class} = $name;
+        }
+        __gen_file({
+            from => "$library_path/tmpl/sub.tmpl",
+            to   => "$output_dir/$name",
+            data => {cpd_sub_table => \@cpd_sub_table}
+        });
+    }
+
+    if ($#cpd_main_table > $MAX_ROW_NUM_PER_PAGE) {
+        @cpd_main_table = @cpd_main_table[0 .. $MAX_ROW_NUM_PER_PAGE];
+    }
+    foreach (@cpd_main_table) {
+        $_->{class} = "";
+    }
+
+    __gen_file({
+        from => "$library_path/tmpl/index.tmpl",
+        to   => "$output_dir/index.html",
+        data => {cpd_main_table => \@cpd_main_table}
+    });
+
+    rcopy($library_path . "/js",     $output_dir . "/js");
+    rcopy($library_path . "/css",    $output_dir . "/css");
     rcopy($library_path . "/images", $output_dir . "/images");
-    open(FP, ">", "$output_dir/index.html");
-    my $tmpl = HTML::Template->new(filename => "$library_path/index.tmpl");
-    $tmpl->param({cpd_main_table => \@cpd_main_table});
+
+    __gen_file({
+        from => "$library_path/tmpl/js.tmpl",
+        to   => "$output_dir/js/cpd.js",
+        data => {cpd_contents => \@cpd_contents}
+    });
+
+}
+
+### ================ Private Methods ===================== ###
+
+sub __gen_file {
+    my $args = shift;
+    my $tmpl = HTML::Template->new(filename => $args->{from});
+    $tmpl->param($args->{data});
+    open(FP, ">", $args->{to});
     print FP $tmpl->output;
     close(FP);
 }
 
-### ================ Private Methods ===================== ###
 sub __get_script {
     my ($filename) = @_;
     my $script = "";
