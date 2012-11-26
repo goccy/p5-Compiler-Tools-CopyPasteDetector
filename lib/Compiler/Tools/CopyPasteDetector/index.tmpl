@@ -16,15 +16,15 @@
           <thead><tr><th>score</th><th>location</th><th>src</th></tr></thead>
           <TMPL_LOOP NAME=cpd_main_table>
             <tr>
-              <td><TMPL_VAR NAME=score></td>
-              <td>
+              <td class="cpd-score"><TMPL_VAR NAME=score></td>
+              <td class="cpd-location">
                 <TMPL_LOOP NAME=location>
                   <ul>
                     <li><TMPL_VAR NAME=file> : <TMPL_VAR NAME=start_line> ~ <TMPL_VAR NAME=end_line></li>
                   </ul>
                 </TMPL_LOOP>
               </td>
-              <td><pre><code><TMPL_VAR NAME=src></code></pre></td>
+              <td class="cpd-src"><pre><code><TMPL_VAR NAME=src></code></pre></td>
             </tr>
           </TMPL_LOOP>
         </table>

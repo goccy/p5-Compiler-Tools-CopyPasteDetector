@@ -19,10 +19,10 @@ XSLoader::load('CopyPasteDetector', $VERSION);
 use B::Deparse;
 use MIME::Base64;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
-use Compiler::Lexer;
 use HTML::Template;
 use File::Copy::Recursive qw(rcopy);
 use Data::Dumper;
+use Compiler::Lexer;
 
 ### ================== Constants ======================== ###
 
@@ -42,7 +42,6 @@ sub detect {
     my ($self, $files) = @_;
     my @stmts;
     foreach my $file (@$files) {
-        print $file, "\n";
         my $stmt_data = $self->__get_stmt_data($file, __get_script($file));
         push(@stmts, @$stmt_data);
     }
@@ -63,7 +62,7 @@ sub get_score {
         if ($hit > 0) {
             next if ($self->__is_exists_parent(\@matched_values));
             my $score = $hit * $matched_values[0]->{token_num};
-            if ($matched_values[0]->{lines} > 2 || $matched_values[0]->{token_num} > 60) {
+            if ($matched_values[0]->{lines} > 2 && $matched_values[0]->{token_num} > 40) {
                 push(@ret, {score => $score, results => $_})
             }
         }
@@ -166,16 +165,16 @@ sub __get_stmt_data {
                 parent     => []
             };
             my @tmp_deparsed_stmts = ();
-            foreach (@deparsed_stmts) {
-#                if (($_->{end_line}     == $start_line) ||
-#                    ($_->{end_line} + 1 == $start_line)) {
-                if ($_->{stmt_num} + 1 == $stmt_num && $_->{indent} == $indent &&
-                    $_->{block_id} == $block_id) {
-                    my $src = $_->{orig} . "\n" . $deparsed_stmt->{orig};
-                    $start_line = $_->{start_line};
+            foreach my $prev_stmt (@deparsed_stmts) {
+#                if (($_->{end_line}     == $start_line) || ($_->{end_line} + 1 == $start_line)) {
+                if ($prev_stmt->{stmt_num} + 1 == $stmt_num &&
+                    $prev_stmt->{indent} == $indent &&
+                    $prev_stmt->{block_id} == $block_id) {
+                    my $src = $prev_stmt->{orig} . "\n" . $deparsed_stmt->{orig};
+                    $start_line = $prev_stmt->{start_line};
                     $line_num = $end_line - $start_line;
                     my $new_hash = md5_base64($src);
-                    my $parent = $_->{parent};
+                    my $parent = $prev_stmt->{parent};
                     push(@$parent, $new_hash);
                     my $added_stmt = {
                         hash       => $new_hash,
@@ -188,7 +187,7 @@ sub __get_stmt_data {
                         indent     => $indent,
                         block_id   => $block_id,
                         stmt_num   => $stmt_num,
-                        token_num  => $_->{token_num} + $token_num,
+                        token_num  => $prev_stmt->{token_num} + $token_num,
                         parent     => []
                     };
                     push(@tmp_deparsed_stmts, $added_stmt);
@@ -261,7 +260,8 @@ my @files = qw(file1.pl file2.pl file3.pl);
 my $detector = CopyPasteDetector->new();
 my $data = $detector->detect(\@files); #for Caching
 my $score = $detector->get_score($data);
-$detector->display($score);
+$detector->display($score); #output to console
+$detector->gen_html($score); #generates html to 'copy_paste_detector_output' dir.
 
 =head1 AUTHOR
 
