@@ -138,7 +138,7 @@ sub gen_html {
         }
         __gen_file({
             from => "$library_path/tmpl/sub.tmpl",
-            to   => "$output_dir/$name",
+            to   => "$output_dir/${name}.html",
             data => {cpd_sub_table => \@cpd_sub_table}
         });
     }
