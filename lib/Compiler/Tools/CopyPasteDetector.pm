@@ -34,7 +34,8 @@ my $MAX_ROW_NUM_PER_PAGE = 100;
 
 sub new {
     my $class = shift;
-    my $self = {tmp => q{__copy_paste_detector.tmp}};
+    my $options = shift;
+    my $self = {tmp => q{__copy_paste_detector.tmp}, options => $options};
     return bless($self, $class);
 }
 
@@ -50,6 +51,10 @@ sub detect {
 
 sub get_score {
     my ($self, $stmts) = @_;
+    my $min_token_num = defined($self->{options}->{min_token_num}) ?
+        $self->{options}->{min_token_num} : 40;
+    my $min_line_num = defined($self->{options}->{min_line_num}) ?
+        $self->{options}->{min_line_num} : 4;
     my @deparsed_stmts = @$stmts;
     my $results = {};
     foreach my $stmt (@deparsed_stmts) {
@@ -59,13 +64,11 @@ sub get_score {
     foreach (values %$results) {
         my @matched_values = @$_;
         my $hit = $#matched_values;
-        if ($hit > 0) {
-            next if ($self->__is_exists_parent(\@matched_values));
-            my $score = $hit * $matched_values[0]->{token_num};
-            if ($matched_values[0]->{lines} > 2 && $matched_values[0]->{token_num} > 40) {
-                push(@ret, {score => $score, results => $_})
-            }
-        }
+        next if ($hit <= 0 || $self->__is_exists_parent(\@matched_values));
+        my $first_value = $matched_values[0];
+        next unless ($first_value->{lines} + 1 >= $min_line_num && $first_value->{token_num} > $min_token_num);
+        my $score = $hit * $first_value->{token_num};
+        push(@ret, {score => $score, results => $_})
     }
     return \@ret;
 }
@@ -74,8 +77,8 @@ sub display {
     my ($self, $scores) = @_;
     my @sorted_data = sort { $b->{score} <=> $a->{score} } @$scores;
     foreach my $data (@sorted_data) {
-        print "\n\tscore    : $data->{score}\n\tlocation : [";
         my $results = $data->{results};
+        print "\n\tscore    : $data->{score}\n\tlocation : [";
         foreach (@$results) {
             print "$_->{file}, ($_->{start_line} ~ $_->{end_line}), ";
         }
@@ -123,19 +126,17 @@ sub gen_html {
     $library_path =~ s/\.pm//;
     my $output_dir = "copy_paste_detector_output";
     mkdir($output_dir);
-    my $sub_contents_num = $#cpd_main_table / $MAX_ROW_NUM_PER_PAGE;
+    my $main_table_size = $#cpd_main_table;
+    my $sub_contents_num = $main_table_size / $MAX_ROW_NUM_PER_PAGE;
     my @cpd_contents;
     for (my $i = 1; $i < $sub_contents_num; $i++) {
         my $start = $i * $MAX_ROW_NUM_PER_PAGE + 1;
-        my $end = ($i + 1) * $MAX_ROW_NUM_PER_PAGE;
-        $end = $#cpd_main_table if ($end > $#cpd_main_table);
-        my @cpd_sub_table = @cpd_main_table[$start .. $end];
+        my $size = ($i + 1) * $MAX_ROW_NUM_PER_PAGE;
+        my $end = ($size > $main_table_size) ? $main_table_size : $size;
         my $name = "sub_contents$i.html";
         push(@cpd_contents, {name => $name});
-        foreach (@cpd_sub_table) {
-            $name =~ s/.html$//;
-            $_->{class} = $name;
-        }
+        $name =~ s/.html$//;
+        my @cpd_sub_table = map { $_->{class} = $name; $_; } @cpd_main_table[$start .. $end];
         __gen_file({
             from => "$library_path/tmpl/sub.tmpl",
             to   => "$output_dir/${name}.html",
@@ -143,12 +144,11 @@ sub gen_html {
         });
     }
 
-    if ($#cpd_main_table > $MAX_ROW_NUM_PER_PAGE) {
+    if ($main_table_size > $MAX_ROW_NUM_PER_PAGE) {
         @cpd_main_table = @cpd_main_table[0 .. $MAX_ROW_NUM_PER_PAGE];
     }
-    foreach (@cpd_main_table) {
-        $_->{class} = "";
-    }
+
+    $_->{class} = "" foreach (@cpd_main_table);
 
     __gen_file({
         from => "$library_path/tmpl/index.tmpl",
@@ -188,13 +188,24 @@ sub __get_script {
     return $script;
 }
 
+sub __autoflush {
+    my ($self, $flushed) = @_;
+    my $old_fh = select $flushed;
+    $| = 1;
+    select $old_fh;
+}
+
+use Data::Dumper;
 sub __get_stmt_data {
     my ($self, $filename, $script) = @_;
     my $stmts = Lexer::get_stmt_codes($filename, $script);
     my @deparsed_stmts;
     my $tmp_file = $self->{tmp};
     my $stmt_num = 0;
+    my @stmts = @$$stmts;
+    get_deparsed_op_list(\@stmts);
     foreach my $stmt (@$$stmts) {
+        my $str = $stmt->{src};
         open(FP, ">", $tmp_file);
         print FP $stmt->{src};
         close(FP);
@@ -202,57 +213,7 @@ sub __get_stmt_data {
         chomp($code);
         next if ($code eq "" || $code eq ";\n");
         if ($code ne $DEPARSE_ERROR_MESSAGE) {
-            my $start_line = $stmt->{start_line};
-            my $end_line = $stmt->{end_line};
-            my $token_num = $stmt->{token_num};
-            my $indent = $stmt->{indent};
-            my $block_id = $stmt->{block_id};
-            my $line_num = $end_line - $start_line;
-            my $deparsed_stmt = {
-                hash       => md5_base64($code),
-                src        => encode_base64($code, ""),
-                orig       => $code,
-                file       => $filename,
-                lines      => ($line_num > 0) ? $line_num : 1,
-                start_line => $start_line,
-                end_line   => $end_line,
-                indent     => $indent,
-                block_id   => $block_id,
-                stmt_num   => $stmt_num,
-                token_num  => $token_num,
-                parent     => []
-            };
-            my @tmp_deparsed_stmts = ();
-            foreach my $prev_stmt (@deparsed_stmts) {
-#                if (($_->{end_line}     == $start_line) || ($_->{end_line} + 1 == $start_line)) {
-                if ($prev_stmt->{stmt_num} + 1 == $stmt_num &&
-                    $prev_stmt->{indent} == $indent &&
-                    $prev_stmt->{block_id} == $block_id) {
-                    my $src = $prev_stmt->{orig} . "\n" . $deparsed_stmt->{orig};
-                    $start_line = $prev_stmt->{start_line};
-                    $line_num = $end_line - $start_line;
-                    my $new_hash = md5_base64($src);
-                    my $parent = $prev_stmt->{parent};
-                    push(@$parent, $new_hash);
-                    my $added_stmt = {
-                        hash       => $new_hash,
-                        src        => encode_base64($src, ""),
-                        orig       => $src,
-                        file       => $filename,
-                        lines      => ($line_num > 0) ? $line_num : 1,
-                        start_line => $start_line,
-                        end_line   => $end_line,
-                        indent     => $indent,
-                        block_id   => $block_id,
-                        stmt_num   => $stmt_num,
-                        token_num  => $prev_stmt->{token_num} + $token_num,
-                        parent     => []
-                    };
-                    push(@tmp_deparsed_stmts, $added_stmt);
-                }
-            }
-            push(@deparsed_stmts, $deparsed_stmt);
-            push(@deparsed_stmts, @tmp_deparsed_stmts);
+            __add_stmt(\@deparsed_stmts, $stmt, $code, $filename, $stmt_num);
             $stmt_num++;
         }
     }
@@ -266,6 +227,60 @@ sub __get_stmt_data {
     }
     unlink($tmp_file);
     return \@deparsed_stmts;
+}
+
+sub __add_stmt {
+    my ($deparsed_stmts, $stmt, $code, $filename, $stmt_num) = @_;
+    my $start_line = $stmt->{start_line};
+    my $end_line = $stmt->{end_line};
+    my $token_num = $stmt->{token_num};
+    my $indent = $stmt->{indent};
+    my $block_id = $stmt->{block_id};
+    my $line_num = $end_line - $start_line;
+    my $deparsed_stmt = {
+        hash       => md5_base64($code),
+        src        => encode_base64($code, ""),
+        orig       => $code,
+        file       => $filename,
+        lines      => ($line_num > 0) ? $line_num : 1,
+        start_line => $start_line,
+        end_line   => $end_line,
+        indent     => $indent,
+        block_id   => $block_id,
+        stmt_num   => $stmt_num,
+        token_num  => $token_num,
+        parent     => []
+    };
+    my @tmp_deparsed_stmts = ();
+    foreach my $prev_stmt (@$deparsed_stmts) {
+        if ($prev_stmt->{stmt_num} + 1 == $stmt_num &&
+            $prev_stmt->{indent} == $indent &&
+            $prev_stmt->{block_id} == $block_id) {
+            my $src = $prev_stmt->{orig} . "\n" . $deparsed_stmt->{orig};
+            $start_line = $prev_stmt->{start_line};
+            $line_num = $end_line - $start_line;
+            my $new_hash = md5_base64($src);
+            my $parent = $prev_stmt->{parent};
+            push(@$parent, $new_hash);
+            my $added_stmt = {
+                hash       => $new_hash,
+                src        => encode_base64($src, ""),
+                orig       => $src,
+                file       => $filename,
+                lines      => ($line_num > 0) ? $line_num : 1,
+                start_line => $start_line,
+                end_line   => $end_line,
+                indent     => $indent,
+                block_id   => $block_id,
+                stmt_num   => $stmt_num,
+                token_num  => $prev_stmt->{token_num} + $token_num,
+                parent     => []
+            };
+            push(@tmp_deparsed_stmts, $added_stmt);
+        }
+    }
+    push(@$deparsed_stmts, $deparsed_stmt);
+    push(@$deparsed_stmts, @tmp_deparsed_stmts);
 }
 
 sub __match_parent_hash {
@@ -290,9 +305,7 @@ sub __is_exists_parent {
             my @from_parent = @{$v->{parent}};
             my @to_parent = @{$_->{parent}};
             next if ($v == $_);
-            unless ($self->__match_parent_hash(\@from_parent, \@to_parent)) {
-                $ret = 0;
-            }
+            $ret = 0 unless ($self->__match_parent_hash(\@from_parent, \@to_parent));
         }
     }
     return $ret;
