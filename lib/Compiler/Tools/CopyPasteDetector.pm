@@ -41,7 +41,7 @@ sub new {
 
 sub detect {
     my ($self, $files) = @_;
-    return $self->__parallel_detect($files) if ($self->{options}->{job} > 1);
+    return $self->__parallel_detect($files);#if ($self->{options}->{job} > 1);
     print "normal_detect\n";
     return $self->__detect($files);
 }
@@ -210,6 +210,8 @@ sub __detect {
     my @stmts;
     foreach my $file (@$files) {
         my $stmt_data = $self->__get_stmt_data($file, __get_script($file));
+		my @tmp = @$stmt_data;
+		print $#tmp, "\n";
         push(@stmts, @$stmt_data);
     }
     return \@stmts;
