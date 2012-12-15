@@ -41,12 +41,9 @@ sub new {
 
 sub detect {
     my ($self, $files) = @_;
-    my @stmts;
-    foreach my $file (@$files) {
-        my $stmt_data = $self->__get_stmt_data($file, __get_script($file));
-        push(@stmts, @$stmt_data);
-    }
-    return \@stmts;
+    return $self->__parallel_detect($files);#if ($self->{options}->{job} > 1);
+    print "normal_detect\n";
+    return $self->__detect($files);
 }
 
 sub get_score {
@@ -195,6 +192,31 @@ sub __autoflush {
     select $old_fh;
 }
 
+sub __parallel_detect {
+    my ($self, $files) = @_;
+    print "parallel_detecting\n";
+    my @prepare;
+    foreach my $filename (@$files) {
+        my $script = __get_script($filename);
+        my $stmts = Lexer::get_stmt_codes($filename, $script);
+        push(@prepare, {filename => $filename, stmts => $$stmts});
+    }
+    my $deparsed_stmts = get_deparsed_stmts_by_xs_parallel(\@prepare, $self->{options}->{job});
+    return $$deparsed_stmts;
+}
+
+sub __detect {
+    my ($self, $files) = @_;
+    my @stmts;
+    foreach my $file (@$files) {
+        my $stmt_data = $self->__get_stmt_data($file, __get_script($file));
+		my @tmp = @$stmt_data;
+		print $#tmp, "\n";
+        push(@stmts, @$stmt_data);
+    }
+    return \@stmts;
+}
+
 use Data::Dumper;
 sub __get_stmt_data {
     my ($self, $filename, $script) = @_;
@@ -203,8 +225,7 @@ sub __get_stmt_data {
     my $tmp_file = $self->{tmp};
     my $stmt_num = 0;
     my @stmts = @$$stmts;
-    get_deparsed_op_list(\@stmts);
-    foreach my $stmt (@$$stmts) {
+    foreach my $stmt (@stmts) {
         my $str = $stmt->{src};
         open(FP, ">", $tmp_file);
         print FP $stmt->{src};
@@ -217,7 +238,6 @@ sub __get_stmt_data {
             $stmt_num++;
         }
     }
-
     foreach my $stmt (@deparsed_stmts) {
         my $start_line = $stmt->{start_line};
         my $lines = $stmt->{lines};
