@@ -349,9 +349,13 @@ This document describes Compiler::Tools::CopyPasteDetector version 1.0000.
 use Compiler::Tools::CopyPasteDetector;
 
 my @files = qw(file1.pl file2.pl file3.pl);
-
-my $detector = CopyPasteDetector->new();
-my $data = $detector->detect(\@files); #for Caching
+my $options = {
+    jobs => 1, # detect by using multi thread
+    min_token_num => 40,
+    min_line_num  => 4
+};
+my $detector = Compiler::Tools::CopyPasteDetector->new($options);
+my $data = $detector->detect(\@files);
 my $score = $detector->get_score($data);
 $detector->display($score); #output to console
 $detector->gen_html($score); #generates html to 'copy_paste_detector_output' dir.
