@@ -1,4 +1,4 @@
-package CopyPasteDetector;
+package Compiler::Tools::CopyPasteDetector;
 
 use 5.012004;
 use strict;
@@ -12,7 +12,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw();
 our $VERSION = '0.01';
 require XSLoader;
-XSLoader::load('CopyPasteDetector', $VERSION);
+XSLoader::load(__PACKAGE__, $VERSION);
 
 ### ============== Dependency Modules =================== ###
 
@@ -198,7 +198,9 @@ sub __parallel_detect {
     my @prepare;
     foreach my $filename (@$files) {
         my $script = __get_script($filename);
-        my $stmts = Lexer::get_stmt_codes($filename, $script);
+        my $lexer = Compiler::Lexer->new($filename);
+        my $tokens = $lexer->tokenize($script);
+        my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
         push(@prepare, {filename => $filename, stmts => $$stmts});
     }
     my $deparsed_stmts = get_deparsed_stmts_by_xs_parallel(\@prepare, $self->{options}->{job});
@@ -209,9 +211,7 @@ sub __detect {
     my ($self, $files) = @_;
     my @stmts;
     foreach my $file (@$files) {
-        my $stmt_data = $self->__get_stmt_data($file, __get_script($file));
-		my @tmp = @$stmt_data;
-		print $#tmp, "\n";
+        my $stmt_data = __get_stmt_data($file, __get_script($file));
         push(@stmts, @$stmt_data);
     }
     return \@stmts;
@@ -220,7 +220,9 @@ sub __detect {
 use Data::Dumper;
 sub __get_stmt_data {
     my ($self, $filename, $script) = @_;
-    my $stmts = Lexer::get_stmt_codes($filename, $script);
+    my $lexer = Compiler::Lexer->new($filename);
+    my $tokens = $lexer->tokenize($script);
+    my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
     my @deparsed_stmts;
     my $tmp_file = $self->{tmp};
     my $stmt_num = 0;
