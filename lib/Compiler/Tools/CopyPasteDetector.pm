@@ -29,29 +29,33 @@ use Compiler::Lexer;
 # B::Deparse's BUG [1; => '???';]
 my $DEPARSE_ERROR_MESSAGE = "'???';";
 my $MAX_ROW_NUM_PER_PAGE = 100;
-
+my $DEFAULT_MIN_LINE_NUM = 4;
+my $DEFAULT_MIN_TOKEN_NUM = 30;
 ### ================ Public Methods ===================== ###
 
 sub new {
     my $class = shift;
     my $options = shift;
-    my $self = {tmp => q{__copy_paste_detector.tmp}, options => $options};
+    my $self = {
+        tmp => q{__copy_paste_detector.tmp},
+        stmt_num_manager => +{},
+        options => $options
+    };
     return bless($self, $class);
 }
 
 sub detect {
     my ($self, $files) = @_;
-    return $self->__parallel_detect($files);#if ($self->{options}->{job} > 1);
-    print "normal_detect\n";
+    return $self->__parallel_detect($files) if ($self->{options}->{job} > 1);
     return $self->__detect($files);
 }
 
 sub get_score {
     my ($self, $stmts) = @_;
     my $min_token_num = defined($self->{options}->{min_token_num}) ?
-        $self->{options}->{min_token_num} : 40;
+        $self->{options}->{min_token_num} : $DEFAULT_MIN_TOKEN_NUM;
     my $min_line_num = defined($self->{options}->{min_line_num}) ?
-        $self->{options}->{min_line_num} : 4;
+        $self->{options}->{min_line_num} : $DEFAULT_MIN_LINE_NUM;
     my @deparsed_stmts = @$stmts;
     my $results = {};
     foreach my $stmt (@deparsed_stmts) {
@@ -192,6 +196,37 @@ sub __autoflush {
     select $old_fh;
 }
 
+sub __ignore_orthographic_variation_of_variable_name {
+    my ($self, $tokens) = @_;
+    my @variables = (
+        Compiler::Lexer::TokenType::T_Var,
+        Compiler::Lexer::TokenType::T_CodeVar,
+        Compiler::Lexer::TokenType::T_ArrayVar,
+        Compiler::Lexer::TokenType::T_HashVar,
+        Compiler::Lexer::TokenType::T_LocalVar,
+        Compiler::Lexer::TokenType::T_LocalArrayVar,
+        Compiler::Lexer::TokenType::T_LocalHashVar,
+        Compiler::Lexer::TokenType::T_GlobalVar,
+        Compiler::Lexer::TokenType::T_GlobalArrayVar,
+        Compiler::Lexer::TokenType::T_GlobalHashVar);
+    foreach my $token (@$$tokens) {
+        if (grep { $_ == $token->{type} } @variables) {
+            $token->{data} = substr($token->{data}, 0, 1) . "v";
+        }
+    }
+}
+
+sub __detect {
+    my ($self, $files) = @_;
+    print "normal_detecting\n";
+    my @stmts;
+    foreach my $file (@$files) {
+        my $stmt_data = $self->__get_stmt_data($file, __get_script($file));
+        push(@stmts, @$stmt_data);
+    }
+    return \@stmts;
+}
+
 sub __parallel_detect {
     my ($self, $files) = @_;
     print "parallel_detecting\n";
@@ -200,6 +235,9 @@ sub __parallel_detect {
         my $script = __get_script($filename);
         my $lexer = Compiler::Lexer->new($filename);
         my $tokens = $lexer->tokenize($script);
+        if ($self->{options}->{ignore_variable_name}) {
+            $self->__ignore_orthographic_variation_of_variable_name($tokens);
+        }
         my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
         push(@prepare, {filename => $filename, stmts => $$stmts});
     }
@@ -207,25 +245,17 @@ sub __parallel_detect {
     return $$deparsed_stmts;
 }
 
-sub __detect {
-    my ($self, $files) = @_;
-    my @stmts;
-    foreach my $file (@$files) {
-        my $stmt_data = __get_stmt_data($file, __get_script($file));
-        push(@stmts, @$stmt_data);
-    }
-    return \@stmts;
-}
-
 use Data::Dumper;
 sub __get_stmt_data {
     my ($self, $filename, $script) = @_;
     my $lexer = Compiler::Lexer->new($filename);
     my $tokens = $lexer->tokenize($script);
+    if ($self->{options}->{ignore_variable_name}) {
+        $self->__ignore_orthographic_variation_of_variable_name($tokens);
+    }
     my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
     my @deparsed_stmts;
     my $tmp_file = $self->{tmp};
-    my $stmt_num = 0;
     my @stmts = @$$stmts;
     foreach my $stmt (@stmts) {
         my $str = $stmt->{src};
@@ -236,8 +266,7 @@ sub __get_stmt_data {
         chomp($code);
         next if ($code eq "" || $code eq ";\n");
         if ($code ne $DEPARSE_ERROR_MESSAGE) {
-            __add_stmt(\@deparsed_stmts, $stmt, $code, $filename, $stmt_num);
-            $stmt_num++;
+            $self->__add_stmt(\@deparsed_stmts, $stmt, $code, $filename);
         }
     }
     foreach my $stmt (@deparsed_stmts) {
@@ -252,13 +281,15 @@ sub __get_stmt_data {
 }
 
 sub __add_stmt {
-    my ($deparsed_stmts, $stmt, $code, $filename, $stmt_num) = @_;
+    my ($self, $deparsed_stmts, $stmt, $code, $filename) = @_;
     my $start_line = $stmt->{start_line};
     my $end_line = $stmt->{end_line};
     my $token_num = $stmt->{token_num};
     my $indent = $stmt->{indent};
     my $block_id = $stmt->{block_id};
     my $line_num = $end_line - $start_line;
+    my $stmt_num = (defined($self->{stmt_num_manager}->{"${indent}_${block_id}"})) ?
+        $self->{stmt_num_manager}->{"${indent}_${block_id}"} : 0;
     my $deparsed_stmt = {
         hash       => md5_base64($code),
         src        => encode_base64($code, ""),
@@ -301,6 +332,7 @@ sub __add_stmt {
             push(@tmp_deparsed_stmts, $added_stmt);
         }
     }
+    $self->{stmt_num_manager}->{"${indent}_${block_id}"}++;
     push(@$deparsed_stmts, $deparsed_stmt);
     push(@$deparsed_stmts, @tmp_deparsed_stmts);
 }
@@ -351,7 +383,7 @@ use Compiler::Tools::CopyPasteDetector;
 my @files = qw(file1.pl file2.pl file3.pl);
 my $options = {
     jobs => 1, # detect by using multi thread
-    min_token_num => 40,
+    min_token_num => 30,
     min_line_num  => 4
 };
 my $detector = Compiler::Tools::CopyPasteDetector->new($options);
