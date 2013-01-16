@@ -9,11 +9,20 @@ SYNOPSIS
 use Compiler::Tools::CopyPasteDetector;
 
 my @files = qw(file1.pl file2.pl file3.pl);
+my $options = {
+    jobs          => 1, # detect by using multi thread
+    min_token_num => 30,
+    min_line_num  => 4,
+    encoding      => 'euc-jp',
+    ignore        => 1, # ignore orthographic variation of variable name
+    order_by      => 'length' # clone metrics's order name
+};
 
-my $detector = CopyPasteDetector->new();
-my $data = $detector->detect(\@files); #for Caching
+my $detector = Compiler::Tools::CopyPasteDetector->new($options);
+my $data = $detector->detect(\@files); # for caching
 my $score = $detector->get_score($data);
-$detector->display($score);
+$detector->display($score);  # output to console
+$detector->gen_html($score);
 
 INSTALLATION
 
