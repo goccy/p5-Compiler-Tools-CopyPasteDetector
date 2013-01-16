@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CopyPasteDetector Results</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1"/>
+    <meta name="description" content=""/>
+    <link rel="stylesheet" type="text/css" href="css/jquery.snippet.min.css"/>
+    <link rel="stylesheet" type="text/css" href="css/jquery.treeview.css"/>
+    <link rel="stylesheet" type="text/css" href="css/cpd.css"/>
+  </head>
+  <body>
+    <div class="cpd-header">
+      <h2>CopyPasteDetector Results</h2>
+    </div>
+    <div class="cpd-main">
+      <div class="cpd-file-tree-area">
+        <div class="cpd-file-tree-wrapper">
+          <div class="cpd-file-tree"></div>
+        </div>
+      </div>
+      <div class="cpd-main-menu-area">
+        <div class="cpd-subtitle">
+          <span id="clone_set_metrics"><h3>clone set metrics</h3></span>
+          <span id="file_metrics"><h3>file metrics</h3></span>
+          <span id="directory_metrics"><h3>directory metrics</h3></span>
+          <span id="scattergram"><h3>scattergram</h3></span>
+          <span class="cpd-filter-box"><input type="text"></input></span>
+        </div>
+        <div class="cpd-main-table-area">
+          <div class="metrics-tab-group"></div>
+          <div class="cpd-main-table-wrapper">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="footer">
+      <p>Report produced by the CopyPasteDetector 1.00. developed by Masaaki Goshima.</p>
+    </div>
+    <!---------------------------- Template ------------------------------->
+    <script id="cpd_main_table_tmpl" type="text/x-jquery-tmpl">
+      <tr>
+        <td class="cpd-score">${score}</td>
+        {{if capacity_over}}
+        <td class="cpd-hit">
+          <div class="${hash}">detail</div>
+          <ul>{{tmpl(short_location) "#short_location_tmpl"}}<li>.....</li></ul>
+          <div class="cpd-hidden-location">
+            <ul>{{tmpl(location) "#location_tmpl"}}</ul>
+          </div>
+        </td>
+        {{else}}
+        <td class="cpd-location"><div class="${hash}">detail</div><ul>{{tmpl(location) "#location_tmpl"}}</ul></td>
+        {{/if}}
+        <td class="cpd-src"><pre class="${classname}"><code>${src}</code></pre></td>
+      </tr>
+    </script>
+    <script id="short_location_tmpl" type="text/x-jquery-tmpl">
+      <li>${file} : ${start_line} ~ ${end_line}</li>
+    </script>
+    <script id="location_tmpl" type="text/x-jquery-tmpl">
+      <li>${file} : ${start_line} ~ ${end_line}</li>
+    </script>
+    <script id="file_metrics_table_tmpl" type="text/x-jquery-tmpl">
+      <tr>
+        <td class="cpd-score">${score}</td>
+        <td class="cpd-name">${name}</td>
+      </tr>
+    </script>
+    <script id="clone_set_metrics_tab_tmpl" type="text/x-jquery-tmpl">
+      <span id="length" class="tab-selected">length</span>
+      <span id="population">population</span>
+      <!--<span>kind of token</span>-->
+      <span id="radius">radius</span>
+      <span id="nif">nif</span>
+    </script>
+    <script id="file_metrics_tab_tmpl" type="text/x-jquery-tmpl">
+      <span id="coverage" class="tab-selected">coverage</span>
+      <span id="ss">self similarity</span>
+      <span id="afs">another files similarity</span>
+      <span id="neighbor">neighbor</span>
+    </script>
+    <script id="directory_metrics_tab_tmpl" type="text/x-jquery-tmpl">
+      <span id="coverage" class="tab-selected">coverage</span>
+      <span id="ss">self similarity</span>
+      <span id="ads">another directories similarity</span>
+      <span id="neighbor">neighbor</span>
+    </script>
+    <script id="clone_set_metrics_table_head_tmpl" type="text/x-jquery-tmpl">
+      <table class="cpd-main-table">
+        <colgroup width="100">
+          <col width="10">
+          <col width="30">
+          <col width="60">
+        </colgroup>
+        <tr>
+          <th class="cpd-score-head">${score}</th>
+          <th class="cpd-location-head">location</th>
+          <th class="cpd-src-head">src</th>
+        </tr>
+      </table>
+    </script>
+    <script id="file_metrics_table_head_tmpl" type="text/x-jquery-tmpl">
+      <table class="cpd-main-table">
+        <colgroup width="100">
+          <col width="30">
+          <col width="70">
+        </colgroup>
+        <tr>
+          <th class="cpd-score-head">${score}</th>
+          <th class="cpd-location-head">name</th>
+        </tr>
+      </table>
+    </script>
+    <script type="text/javascript" src="js/lib/jquery.js"></script>
+    <script type="text/javascript" src="js/lib/jquery.snippet.min.js"></script>
+    <script type="text/javascript" src="js/lib/jquery.tmpl.min.js"></script>
+    <script type="text/javascript" src="js/lib/jquery.cookie.js"></script>
+    <script type="text/javascript" src="js/lib/jquery.treeview.js"></script>
+    <script type="text/javascript" src="js/footer.js"></script>
+    <script type="text/javascript" src="js/common.js"></script>
+    <script type="text/javascript" src="js/util.js"></script>
+    <script type="text/javascript" src="js/filetree.js"></script>
+    <script type="text/javascript" src="js/metrics.js"></script>
+    <script type="text/javascript" src="js/event.js"></script>
+    <script type="text/javascript" src="js/cpd.js"></script>
+  </body>
+</html>

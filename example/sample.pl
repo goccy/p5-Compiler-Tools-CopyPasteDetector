@@ -18,7 +18,9 @@ my $namespace = $ARGV[0];
 my @files = get_target_files_list_by_namespace($namespace);
 #my @files = (@ARGV);
 
-my $detector = Compiler::Tools::CopyPasteDetector->new({job => 8});
+my $detector = Compiler::Tools::CopyPasteDetector->new({
+    ignore_variable_name => 1,
+    job => 8});
 my $data = $detector->detect(\@files);
 my $score = $detector->get_score($data);
 $detector->display($score);

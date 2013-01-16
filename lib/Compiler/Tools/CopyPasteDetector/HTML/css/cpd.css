@@ -1,0 +1,305 @@
+body, html {
+    background-image: url("images/white.png");
+    position: relative;
+    height: 100%;
+    min-width: 1400px;
+    margin: 0px;
+}
+
+.cpd-hidden-location {
+    display:none;
+}
+
+.cpd-header h2 {
+    text-align: center;
+}
+
+.cpd-main {
+    position: relative;
+    width: 96%;
+    min-height: 90%;
+    display: block;
+    position: relative;
+    margin-left:auto;
+    margin-right:auto;
+    box-shadow: 3px 3px 5px #c9c9c9;
+    background-color: white;
+    background-color: #fffff8;
+    -moz-border-radius: 10px 10px 10px 10px;
+    -webkit-border-radius: 10px 10px 10px 10px;
+    border-radius: 10px 10px 10px 10px;
+    border: 1px dashed  #98abb9;
+    -moz-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
+    -webkit-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
+    box-shadow: 0 0 0 4px #fffff8, 1px 1px 6px 3px rgba(10,10,0,.5);
+}
+
+.cpd-subtitle {
+    position: relative;
+    font-family: Helvetica, sans-serif;
+    font-size: 16px;
+    color: #c9c9c9;
+    display: block;
+    padding-left: 30px;
+}
+
+.selected {
+    color: black;
+    text-decoration: underline;
+}
+
+.cpd-subtitle span {
+    position: relative;
+    display: inline-block;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.cpd-subtitle span:hover {
+    cursor: pointer;
+    color: black;
+    text-decoration: underline;
+}
+
+.cpd-file-tree-area {
+    position: relative;
+    vertical-align: top;
+    display: inline-block;
+    width: 24%;
+    top: 40px;
+}
+
+.cpd-file-tree-area h3 {
+    padding-left: 30px;
+    font-size: 16px;
+}
+
+.cpd-main-menu-area {
+    position: relative;
+    vertical-align: top;
+    display: inline-block;
+    width: 75%;
+}
+
+.cpd-name {
+    width: 70%;
+    height: 50px;
+}
+
+.cpd-file-tree-wrapper {
+    position: relative;
+    margin-top: 30px;
+    margin-left: 10px;
+    background-color: #fffff8;
+    -moz-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
+    -webkit-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
+    box-shadow: 0 0 0 4px #fffff8, 1px 1px 6px 3px rgba(10,10,0,.5);
+    z-index:1;
+    overflow-x: hidden;
+}
+
+.cpd-filter-box {
+    position: relative;
+    float: right;
+    top: 20px;
+    left: -30px;
+}
+
+.cpd-filter-box input {
+    width: 200px;
+    height: 20px;
+    font-size: 16px;
+    -moz-box-shadow:inset 2px 2px 5px #ccc;
+    border: 1px solid #b8b8b8;
+	border-radius: 3px;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    outline: 0; /* cut auto focus */
+}
+
+.cpd-filter-box input[type="text"]:focus {
+    border: 1px solid #aae472;
+    box-shadow: 0px 0px 10px #aae472;
+}
+
+.cpd-main-table-wrapper {
+    position: relative;
+    vertical-align: top;
+    display: inline-block;
+    width: 100%;
+}
+
+.cpd-main-table {
+    table-layout: fixed;
+    overflow: auto;
+    width: 100%;
+}
+
+.cpd-hit {
+    overflow-x: auto;
+}
+
+.cpd-location {
+    overflow-x: auto;
+}
+.cpd-hit div {
+    color: blue;
+    text-decoration: underline;
+}
+
+.cpd-location div {
+    color: blue;
+    text-decoration: underline;
+}
+
+.cpd-hit div:hover {
+    cursor: pointer;
+}
+
+.cpd-location div:hover {
+    cursor: pointer;
+}
+
+.cpd-main-table td, th {
+    border: 1px #f0f8ef solid; 
+}
+
+.cpd-main-table * {
+    position: relative;
+    *border-collapse: collapse;
+    font-family: Helvetica, sans-serif;
+    border-style: none;
+    border-spacing: 0;
+    padding-left: 20px;
+    padding-right: 20px;
+    text-align: center;
+}
+
+.cpd-main-table pre * {
+    *border-collapse: collapse;
+    border-spacing: 0;
+    padding-left: 0px;
+    padding-right: 0px;
+}
+
+.cpd-main-table th {
+    background-color: #dcdcdc;
+    font-size: 20px;
+    -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
+    -moz-box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
+    box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
+    border-top: none;
+}
+
+.cpd-main-table tr:nth-child(even) {
+    background: #f0f8ef;
+    -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
+    -moz-box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
+    box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
+}
+
+.cpd-main-table tr:nth-child(odd) {
+    background-color: #fffff8;
+    -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
+    -moz-box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
+    box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
+}
+
+.cpd-main-table tr:hover {
+    background: #afeeee;
+    -o-transition: all 0.1s ease-in-out;
+    -webkit-transition: all 0.1s ease-in-out;
+    -moz-transition: all 0.1s ease-in-out;
+    -ms-transition: all 0.1s ease-in-out;
+    transition: all 0.1s ease-in-out;
+}
+
+.popup-window {
+	position:absolute;
+	z-index:100;
+    overflow: auto;
+	background-color:white;
+}
+
+.detail-contents {
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+    width: 49%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.detail-contents h3 {
+    text-align: center;
+}
+
+.src-view {
+    position: relative;
+    overflow: auto;
+    height: 100%;
+}
+
+.black-filter {
+	position:absolute;
+    margin-top: -100px;
+    padding-top: 0;
+	top:0px;
+	left:0px;
+	z-index:99;
+	opacity:0.8;
+	background-color:black;
+}
+
+/*
+ul {
+    white-space: pre;
+    white-space: pre-wrap;
+    white-space: pre-line;
+    white-space: -pre-wrap;
+    white-space: -o-pre-wrap;
+    white-space: -moz-pre-wrap;
+    white-space: -hp-pre-wrap;
+    word-wrap: break-word;
+}
+*/
+
+.cpd-src * {
+    text-align: left;
+}
+
+#footer {
+    position: relative;
+    height: 80px;
+    width: 100%;
+    color: white;
+    font-size: 16px;
+    background-image: url("images/gray.png");
+}
+
+#footer p {
+    position:relative;
+    text-align: center;
+    top: 30px;
+}
+
+.metrics-tab-group {
+    position: relative;
+    top: 7px;
+    left: 10px;
+}
+
+.metrics-tab-group span {
+    cursor: pointer;
+    padding: 5px 10px;
+    float: left;
+    border: solid 1px #aaa;
+    margin-left: -1px;
+    background-color: #fffafa;
+}
+
+.metrics-tab-group .tab-selected {
+    color: #fff;
+    background-color: #c3c3c3;
+}
+

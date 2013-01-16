@@ -21,8 +21,15 @@ use MIME::Base64;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 use HTML::Template;
 use File::Copy::Recursive qw(rcopy);
+use File::Basename qw/dirname basename/;
+use File::Path;
+use JSON::XS;
 use Data::Dumper;
 use Compiler::Lexer;
+use Compiler::Tools::CopyPasteDetector::CloneSetMetrics;
+use Compiler::Tools::CopyPasteDetector::FileMetrics;
+use Compiler::Tools::CopyPasteDetector::DirectoryMetrics;
+use Compiler::Tools::CopyPasteDetector::Scattergram;
 
 ### ================== Constants ======================== ###
 
@@ -31,145 +38,268 @@ my $DEPARSE_ERROR_MESSAGE = "'???';";
 my $MAX_ROW_NUM_PER_PAGE = 100;
 my $DEFAULT_MIN_LINE_NUM = 4;
 my $DEFAULT_MIN_TOKEN_NUM = 30;
+my $DEFAULT_ORDER_NAME = 'length';
 ### ================ Public Methods ===================== ###
 
 sub new {
     my $class = shift;
     my $options = shift;
+    my $tk_n    = $options->{min_token_num};
+    my $line_n  = $options->{min_line_num};
+    my $order   = $options->{order_by};
+    my $jobs    = $options->{jobs};
+    my $ignore  = $options->{ignore_variable_name};
+    my $encoding = $options->{encoding};
+    my @order_by_list = qw(length population kind_of_token radius nif);
+    my $checked_order = $order if (defined $order && grep {$_ eq $order} @order_by_list);
     my $self = {
         tmp => q{__copy_paste_detector.tmp},
-        stmt_num_manager => +{},
-        options => $options
+        stmt_num_manager     => +{},
+        min_token_num        => $tk_n || $DEFAULT_MIN_TOKEN_NUM,
+        min_line_num         => $line_n || $DEFAULT_MIN_LINE_NUM,
+        jobs                 => $jobs || 1,
+        ignore_variable_name => $ignore || 0,
+        order_by             => $checked_order || $DEFAULT_ORDER_NAME,
+        encoding             => $encoding
     };
     return bless($self, $class);
 }
 
 sub detect {
     my ($self, $files) = @_;
-    return $self->__parallel_detect($files) if ($self->{options}->{job} > 1);
+    return $self->__parallel_detect($files) if ($self->{jobs} > 1);
     return $self->__detect($files);
 }
 
 sub get_score {
     my ($self, $stmts) = @_;
-    my $min_token_num = defined($self->{options}->{min_token_num}) ?
-        $self->{options}->{min_token_num} : $DEFAULT_MIN_TOKEN_NUM;
-    my $min_line_num = defined($self->{options}->{min_line_num}) ?
-        $self->{options}->{min_line_num} : $DEFAULT_MIN_LINE_NUM;
+    my $min_token_num = $self->{min_token_num};
+    my $min_line_num  = $self->{min_line_num};
+    my $order_by      = $self->{order_by};
     my @deparsed_stmts = @$stmts;
-    my $results = {};
+    my $clone_set_map = +{};
+    my $filemap = +{};
+    my @clone_set_results;
     foreach my $stmt (@deparsed_stmts) {
-        push(@{$results->{$stmt->{hash}}}, $stmt);
+        push(@{$clone_set_map->{$stmt->{hash}}}, $stmt);
     }
-    my @ret;
-    foreach (values %$results) {
-        my @matched_values = @$_;
-        my $hit = $#matched_values;
-        next if ($hit <= 0 || $self->__is_exists_parent(\@matched_values));
-        my $first_value = $matched_values[0];
-        next unless ($first_value->{lines} + 1 >= $min_line_num && $first_value->{token_num} > $min_token_num);
-        my $score = $hit * $first_value->{token_num};
-        push(@ret, {score => $score, results => $_})
+    foreach my $clone_set (values %$clone_set_map) {
+        my @clones = @$clone_set;
+        my $hit = scalar @$clone_set;
+        next if ($hit <= 0 || $self->__is_exists_parents($clone_set));
+        my $first_clone = $clone_set->[0];
+        next unless ($first_clone->{lines} + 1 >= $min_line_num && $first_clone->{token_num} > $min_token_num);
+        $self->__set_neighbor_name($clone_set);
+        my $token_num = $first_clone->{token_num};
+        my $clone_metrics = Compiler::Tools::CopyPasteDetector::CloneSetMetrics->new($clone_set)->get_score();
+        push(@clone_set_results, { metrics => $clone_metrics, set => $clone_set });
+        foreach my $clone (@$clone_set) {
+            my $filename = $clone->{file};
+            my $hash = $clone->{hash};
+            $filemap->{$filename} = +{ clone => +{} } unless (exists $filemap->{$filename});
+            my $file_point = $filemap->{$filename};
+            unless (exists $file_point->{all_token_num}) {
+                my $all_tokens = Compiler::Lexer->new($filename)->tokenize($self->__get_script($filename));
+                $file_point->{token_num} = scalar @$$all_tokens;
+            }
+            $file_point->{clone}->{$hash} = +{} if (!exists $file_point->{clone}->{$hash});
+            my $clone_point = $file_point->{clone}->{$hash};
+            $clone_point->{count}++;
+            $clone_point->{token_num} = $token_num;
+            $clone_point->{parents} = $clone->{parents};
+            push(@{$clone_point->{start_line}}, $clone->{start_line});
+            push(@{$clone_point->{end_line}}, $clone->{end_line});
+            $clone_point->{from_names} = $clone->{from_names};
+            my $node = $self->__make_node($filename);
+            push(@{$node->{children}}, $file_point->{clone})
+                unless (grep { $_ =~ $file_point->{clone} } @{$node->{children}});
+        }
     }
-    return \@ret;
+    foreach my $filename (keys %$filemap) {
+        my $file_metrics = Compiler::Tools::CopyPasteDetector::FileMetrics->new(
+            {
+                name => $filename,
+                clones => $filemap->{$filename}->{clone},
+                all_token_num => $filemap->{$filename}->{token_num}
+            })->get_score();
+        $filemap->{$filename}->{metrics} = $file_metrics;
+    }
+    my $dm = Compiler::Tools::CopyPasteDetector::DirectoryMetrics->new($self->{root}->{root}, $filemap);
+    my $dirmap = $dm->get_directory_map();
+    my $directory_score = +{};
+    foreach my $dirname (keys %$dirmap) {
+        $directory_score->{$dirname}->{metrics} = $dm->get_score($dirname);
+    }
+    delete $self->{diretory_map};
+    #default property to sort is length.
+    my @sorted_clone_set_results = sort {
+        $b->{score} <=> $a->{score};
+    } map {
+        $_->{score} = $_->{metrics}->{$order_by}; $_;
+    } @clone_set_results;
+    return {
+        file_score      => $filemap,
+        clone_set_score => \@sorted_clone_set_results,
+        directory_score => $directory_score
+    };
 }
 
 sub display {
-    my ($self, $scores) = @_;
-    my @sorted_data = sort { $b->{score} <=> $a->{score} } @$scores;
-    foreach my $data (@sorted_data) {
-        my $results = $data->{results};
+    my ($self, $score) = @_;
+    my $clone_set_score = $score->{clone_set_score};
+    foreach my $data (@$clone_set_score) {
+        my $clone_set = $data->{set};
         print "\n\tscore    : $data->{score}\n\tlocation : [";
-        foreach (@$results) {
+        foreach (@$clone_set) {
             print "$_->{file}, ($_->{start_line} ~ $_->{end_line}), ";
         }
-        my $src = decode_base64($results->[0]->{src});
+        my $src = decode_base64($clone_set->[0]->{src});
         print "]\n\tsrc      : ${src}\n";
     }
 }
 
 sub gen_html {
-    my ($self, $scores) = @_;
-    my @sorted_data = sort { $b->{score} <=> $a->{score} } @$scores;
-    my @cpd_main_table;
-    foreach my $data (@sorted_data) {
-        my @locations;
-        my $results = $data->{results};
-        foreach (@$results) {
-            push(@locations, {
-                file       => $_->{file},
-                start_line => $_->{start_line},
-                end_line   => $_->{end_line}
-            });
-        }
-        my $score = $data->{score};
-        my $src = decode_base64($results->[0]->{src});
-        if ($#locations > 3) {
-            my @short_location = @locations[0 .. 3];
-            push(@cpd_main_table, {
-                score => $score,
-                capacity_over => 1,
-                short_location => \@short_location,
-                location => \@locations,
-                src => $src
-            });
-        } else {
-            push(@cpd_main_table, {
-                score => $score,
-                capacity_over => 0,
-                location => \@locations,
-                src => $src
-            });
-        }
-    }
-
+    my ($self, $score) = @_;
     my $library_path = $INC{"Compiler/Tools/CopyPasteDetector.pm"};
     $library_path =~ s/\.pm//;
     my $output_dir = "copy_paste_detector_output";
     mkdir($output_dir);
-    my $main_table_size = $#cpd_main_table;
-    my $sub_contents_num = $main_table_size / $MAX_ROW_NUM_PER_PAGE;
-    my @cpd_contents;
-    for (my $i = 1; $i < $sub_contents_num; $i++) {
-        my $start = $i * $MAX_ROW_NUM_PER_PAGE + 1;
-        my $size = ($i + 1) * $MAX_ROW_NUM_PER_PAGE;
-        my $end = ($size > $main_table_size) ? $main_table_size : $size;
-        my $name = "sub_contents$i.html";
-        push(@cpd_contents, {name => $name});
-        $name =~ s/.html$//;
-        my @cpd_sub_table = map { $_->{class} = $name; $_; } @cpd_main_table[$start .. $end];
-        __gen_file({
-            from => "$library_path/tmpl/sub.tmpl",
-            to   => "$output_dir/${name}.html",
-            data => {cpd_sub_table => \@cpd_sub_table}
-        });
+    rcopy($library_path . "/HTML", $output_dir);
+    my $file_score = $score->{file_score};
+    my $directory_score = $score->{directory_score};
+    my @file_data = sort {
+        $b->{score} <=> $a->{score};
+    } map {
+        {
+            name    => $_,
+            score   => $file_score->{$_}->{metrics}->{coverage},
+            metrics => $file_score->{$_}->{metrics}
+        };
+    } keys %$file_score;
+    my @directory_data = sort {
+        $b->{score} <=> $a->{score};
+    } map {
+        {
+            name    => $_,
+            score   => $directory_score->{$_}->{metrics}->{coverage},
+            metrics => $directory_score->{$_}->{metrics}
+        }
+    } keys %$directory_score;
+    my $json = JSON::XS->new();
+    open(my $fh, '>', "$output_dir/js/file_data.json");
+    print $fh $json->encode(\@file_data);
+    close($fh);
+
+    open($fh, '>', "$output_dir/js/directory_data.json");
+    print $fh $json->encode(\@directory_data);
+    close($fh);
+
+    delete $file_score->{$_}->{metrics} foreach (keys %$file_score);
+    $self->__output_clone_data($score->{file_score}, $output_dir);
+    foreach (@{$score->{clone_set_score}}) {
+        my $set = $_->{set};
+        for (my $i = 0; $i < scalar @$set; $i++) {# result (@{$_->{set}}) {
+            my $result = $set->[$i];
+            if ($i == 0) {
+                $result->{src} = decode_base64($result->{src});
+            } else {
+                delete $result->{src};
+                delete $result->{hash};
+            }
+            delete $result->{parents};
+            delete $result->{token_num};
+            delete $result->{lines};
+            delete $result->{from_names};
+            delete $result->{indent};
+            delete $result->{block_id};
+            delete $result->{stmt_num};
+            delete $result->{orig};
+        }
     }
-
-    if ($main_table_size > $MAX_ROW_NUM_PER_PAGE) {
-        @cpd_main_table = @cpd_main_table[0 .. $MAX_ROW_NUM_PER_PAGE];
-    }
-
-    $_->{class} = "" foreach (@cpd_main_table);
-
-    __gen_file({
-        from => "$library_path/tmpl/index.tmpl",
-        to   => "$output_dir/index.html",
-        data => {cpd_main_table => \@cpd_main_table}
-    });
-
-    rcopy($library_path . "/js",     $output_dir . "/js");
-    rcopy($library_path . "/css",    $output_dir . "/css");
-    rcopy($library_path . "/images", $output_dir . "/images");
-
-    __gen_file({
-        from => "$library_path/tmpl/js.tmpl",
-        to   => "$output_dir/js/cpd.js",
-        data => {cpd_contents => \@cpd_contents}
-    });
-
+    $json = JSON::XS->new();
+    open($fh, '>', "$output_dir/js/clone_set_data.json");
+    print $fh $json->encode($score->{clone_set_score});
+    close($fh);
 }
 
 ### ================ Private Methods ===================== ###
+
+sub __set_neighbor_name {
+    my ($self, $matched_values) = @_;
+    foreach my $v (@$matched_values) {
+        my @names = map { $_->{file}; } grep { $v !~ $_ } @$matched_values;
+        $v->{from_names}->{$_}++ foreach (@names);
+    }
+}
+
+sub __get_parents_node {
+    my ($self, $dirname) = @_;
+    $dirname =~ m|(.*)/.*|;
+    my $parents_dir = $1;
+    if ($parents_dir !~ m|/|) {
+        my $root = {name => $parents_dir, children => []};
+        $self->{root}->{$parents_dir} = $root;
+        $self->{root}->{root} = $root;
+    }
+    return (!exists $self->{root}->{$parents_dir}) ?
+        $self->__make_node($parents_dir) : $self->{root}->{$parents_dir};
+}
+
+sub __make_node {
+    my ($self, $dirname) = @_;
+    my $parents_node = $self->__get_parents_node($dirname);
+    my $node = {name => $dirname, children => []};
+    $self->{root}->{$dirname} = $node;
+    unless (grep { $_->{name} eq $dirname } @{$parents_node->{children}}) {
+        push(@{$parents_node->{children}}, $node);
+    }
+    return $node;
+}
+
+sub __output_clone_data {
+    my ($self, $filemap, $output_dir) = @_;
+    foreach my $filepath (keys %$filemap) {
+        my $clones = $filemap->{$filepath}->{clone};
+        open(my $fp, "<", $filepath);
+        binmode($fp, sprintf(":encoding(%s)", $self->{encoding})) if ($self->{encoding});
+        my $line_number = 1;
+        my %start_line_nums;
+        my %end_line_nums;
+        foreach my $hash (keys %$clones) {
+            push(@{$start_line_nums{$_}}, $hash) foreach (@{$clones->{$hash}->{start_line}});
+            push(@{$end_line_nums{$_}}, $hash) foreach (@{$clones->{$hash}->{end_line}});
+        }
+        my $output_data = "";
+        my %clone_area_flags;
+        foreach my $line (<$fp>) {
+            if (exists $start_line_nums{$line_number}) {
+                $output_data .= sprintf("<div class='code-clone-start %s'></div>", $_)
+                    foreach (@{$start_line_nums{$line_number}});
+            }
+            $output_data .= "$line";
+            if (exists $end_line_nums{$line_number}) {
+                $output_data .= sprintf("<div class='code-clone-end %s'></div>", $_)
+                    foreach (@{$end_line_nums{$line_number}});
+            }
+            $line_number++;
+        }
+        close($fp);
+        my $filename = basename($filepath);
+        my $dirname = "$output_dir/data/" . dirname($filepath);
+        mkpath($dirname);
+        open($fp, ">", "${dirname}/${filename}");
+        binmode($fp, ":utf8");
+        print $fp $output_data;
+        close($fp);
+    }
+    open(my $fp, '>', "$output_dir/scattergram.html");
+    print $fp Compiler::Tools::CopyPasteDetector::Scattergram->new($self->{root}->{root})->render();
+    close($fp);
+    my $json = JSON::XS->new();
+    open($fp, '>', "$output_dir/js/output.json");
+    print $fp $json->encode($self->{root}->{root});
+    close($fp);
+}
 
 sub __gen_file {
     my $args = shift;
@@ -181,19 +311,12 @@ sub __gen_file {
 }
 
 sub __get_script {
-    my ($filename) = @_;
+    my ($self, $filename) = @_;
     my $script = "";
     open(FP, "<", $filename) or die("Error");
     $script .= $_ foreach (<FP>);
     close(FP);
     return $script;
-}
-
-sub __autoflush {
-    my ($self, $flushed) = @_;
-    my $old_fh = select $flushed;
-    $| = 1;
-    select $old_fh;
 }
 
 sub __ignore_orthographic_variation_of_variable_name {
@@ -221,7 +344,7 @@ sub __detect {
     print "normal_detecting\n";
     my @stmts;
     foreach my $file (@$files) {
-        my $stmt_data = $self->__get_stmt_data($file, __get_script($file));
+        my $stmt_data = $self->__get_stmt_data($file, $self->__get_script($file));
         push(@stmts, @$stmt_data);
     }
     return \@stmts;
@@ -232,31 +355,31 @@ sub __parallel_detect {
     print "parallel_detecting\n";
     my @prepare;
     foreach my $filename (@$files) {
-        my $script = __get_script($filename);
+        my $script = $self->__get_script($filename);
         my $lexer = Compiler::Lexer->new($filename);
         my $tokens = $lexer->tokenize($script);
-        if ($self->{options}->{ignore_variable_name}) {
+        if ($self->{ignore_variable_name}) {
             $self->__ignore_orthographic_variation_of_variable_name($tokens);
         }
         my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
         push(@prepare, {filename => $filename, stmts => $$stmts});
     }
-    my $deparsed_stmts = get_deparsed_stmts_by_xs_parallel(\@prepare, $self->{options}->{job});
+    my $deparsed_stmts = get_deparsed_stmts_by_xs_parallel(\@prepare, $self->{jobs});
     return $$deparsed_stmts;
 }
 
-use Data::Dumper;
 sub __get_stmt_data {
     my ($self, $filename, $script) = @_;
     my $lexer = Compiler::Lexer->new($filename);
     my $tokens = $lexer->tokenize($script);
-    if ($self->{options}->{ignore_variable_name}) {
+    if ($self->{ignore_variable_name}) {
         $self->__ignore_orthographic_variation_of_variable_name($tokens);
     }
     my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
     my @deparsed_stmts;
     my $tmp_file = $self->{tmp};
     my @stmts = @$$stmts;
+    $self->{stmt_num_manager} = +{};
     foreach my $stmt (@stmts) {
         my $str = $stmt->{src};
         open(FP, ">", $tmp_file);
@@ -264,6 +387,7 @@ sub __get_stmt_data {
         close(FP);
         my $code = `perl -MList::Util -MCarp -MO=Deparse $tmp_file 2> /dev/null`;
         chomp($code);
+#        print "\n[$code] : $stmt->{start_line}, $stmt->{end_line}\n";
         next if ($code eq "" || $code eq ";\n");
         if ($code ne $DEPARSE_ERROR_MESSAGE) {
             $self->__add_stmt(\@deparsed_stmts, $stmt, $code, $filename);
@@ -274,7 +398,7 @@ sub __get_stmt_data {
         my $lines = $stmt->{lines};
         my @parents = grep { $_->{start_line} == $start_line - ($_->{lines} - $lines) } @deparsed_stmts;
         @parents = grep { $_->{lines} > $stmt->{lines} } @parents;
-        push(@{$stmt->{parent}}, $_->{hash}) foreach (@parents);
+        push(@{$stmt->{parents}}, $_->{hash}) foreach (@parents);
     }
     unlink($tmp_file);
     return \@deparsed_stmts;
@@ -302,7 +426,7 @@ sub __add_stmt {
         block_id   => $block_id,
         stmt_num   => $stmt_num,
         token_num  => $token_num,
-        parent     => []
+        parents     => []
     };
     my @tmp_deparsed_stmts = ();
     foreach my $prev_stmt (@$deparsed_stmts) {
@@ -313,8 +437,7 @@ sub __add_stmt {
             $start_line = $prev_stmt->{start_line};
             $line_num = $end_line - $start_line;
             my $new_hash = md5_base64($src);
-            my $parent = $prev_stmt->{parent};
-            push(@$parent, $new_hash);
+            my $parents = $prev_stmt->{parents};
             my $added_stmt = {
                 hash       => $new_hash,
                 src        => encode_base64($src, ""),
@@ -327,9 +450,15 @@ sub __add_stmt {
                 block_id   => $block_id,
                 stmt_num   => $stmt_num,
                 token_num  => $prev_stmt->{token_num} + $token_num,
-                parent     => []
+                parents     => []
             };
+            push(@{$added_stmt->{parents}}, @$parents);
+            push(@$parents, $new_hash);
             push(@tmp_deparsed_stmts, $added_stmt);
+        } elsif ($indent - 1 == $prev_stmt->{indent} &&
+                 $start_line - 1 == $prev_stmt->{start_line}) {
+            # prev_stmt is sub f {} or if () {} or for () {} and so on
+            push(@{$deparsed_stmt->{parents}}, $prev_stmt->{hash});
         }
     }
     $self->{stmt_num_manager}->{"${indent}_${block_id}"}++;
@@ -337,11 +466,11 @@ sub __add_stmt {
     push(@$deparsed_stmts, @tmp_deparsed_stmts);
 }
 
-sub __match_parent_hash {
-    my ($self, $from_parent, $to_parent) = @_;
+sub __match_parents_hash {
+    my ($self, $from_parents, $to_parents) = @_;
     my $ret = 0;
-    foreach my $from (@$from_parent) {
-        if (grep { $from eq $_ } @$to_parent) {
+    foreach my $from (@$from_parents) {
+        if (grep { $from eq $_ } @$to_parents) {
             $ret = 1;
             last;
         }
@@ -349,17 +478,17 @@ sub __match_parent_hash {
     return $ret;
 }
 
-sub __is_exists_parent {
+sub __is_exists_parents {
     my ($self, $matched_values) = @_;
     my @matched_values = @$matched_values;
     my @copied_matched_values = @matched_values;
     my $ret = 1;
     foreach my $v (@matched_values) {
         foreach (@copied_matched_values) {
-            my @from_parent = @{$v->{parent}};
-            my @to_parent = @{$_->{parent}};
+            my @from_parents = @{$v->{parents}};
+            my @to_parents = @{$_->{parents}};
             next if ($v == $_);
-            $ret = 0 unless ($self->__match_parent_hash(\@from_parent, \@to_parent));
+            $ret = 0 unless ($self->__match_parents_hash(\@from_parents, \@to_parents));
         }
     }
     return $ret;

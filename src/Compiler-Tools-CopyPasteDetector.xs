@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -67,7 +68,7 @@ public:
 
 typedef vector<Stmt *> Task;
 
-static void add_stmt(vector<DeparsedStmt *> *deparsed_stmts, Stmt *stmt, string code, int stmt_num)
+static void add_stmt(vector<DeparsedStmt *> *deparsed_stmts, Stmt *stmt, string code, map<string, int> *stmt_num_manager)
 {
 	const char *filename = stmt->filename;
 	int token_num = stmt->token_num;
@@ -76,6 +77,16 @@ static void add_stmt(vector<DeparsedStmt *> *deparsed_stmts, Stmt *stmt, string 
 	int start_line = stmt->start_line;
 	int end_line = stmt->end_line;
 	int line_num = end_line - start_line;
+	char manager_key[32] = {0};
+	snprintf(manager_key, 32, "%d_%d", indent, block_id);
+	map<string, int>::iterator it = stmt_num_manager->find(string(manager_key));
+	int stmt_num;
+	if (it == stmt_num_manager->end()) {
+		stmt_num_manager->insert(map<string, int>::value_type(string(manager_key), 0));
+		stmt_num = 0;
+	} else {
+		stmt_num = (*it).second;
+	}
 	clx::md5 md5;
 	DeparsedStmt *deparsed_stmt = new DeparsedStmt((new string(md5.encode(code).to_string()))->c_str(),
 												   (new string(clx::base64::encode(code)))->c_str(),
@@ -92,7 +103,6 @@ static void add_stmt(vector<DeparsedStmt *> *deparsed_stmts, Stmt *stmt, string 
 			start_line = prev_stmt->start_line;
 			line_num = end_line - start_line;
 			const char *new_hash = (new string(md5.encode(src).to_string()))->c_str();
-			prev_stmt->parents.push_back(new_hash);
 			DeparsedStmt *added_stmt = new DeparsedStmt(new_hash,
 														(new string(clx::base64::encode(src)))->c_str(),
 														(new string(src))->c_str(),
@@ -100,9 +110,19 @@ static void add_stmt(vector<DeparsedStmt *> *deparsed_stmts, Stmt *stmt, string 
 														start_line, end_line,
 														indent, block_id, stmt_num,
 														prev_stmt->token_num + token_num);
+			added_stmt->parents.insert(added_stmt->parents.end(),
+									   prev_stmt->parents.begin(), prev_stmt->parents.end());
+			prev_stmt->parents.push_back(new_hash);
 			tmp_deparsed_stmts.push_back(added_stmt);
+		} else if (indent - 1 == prev_stmt->indent && start_line - 1 == prev_stmt->start_line) {
+			//fprintf(stderr, "parent = [%s]\n", prev_stmt->orig);
+			//fprintf(stderr, "stmt = [%s]\n", deparsed_stmt->orig);
+			deparsed_stmt->parents.push_back(prev_stmt->hash);
 		}
 	}
+	stmt_num++;
+	it = stmt_num_manager->find(string(manager_key));
+	(*it).second = stmt_num;
 	deparsed_stmts->push_back(deparsed_stmt);
 	deparsed_stmts->insert(deparsed_stmts->end(), tmp_deparsed_stmts.begin(), tmp_deparsed_stmts.end());
 }
@@ -110,7 +130,7 @@ static void add_stmt(vector<DeparsedStmt *> *deparsed_stmts, Stmt *stmt, string 
 static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *task,
 							   const char *tmp_file_name, size_t stmts_size)
 {
-	size_t stmt_num = 0;
+	map<string, int> stmt_num_manager;
 	for (size_t i = 0; i < stmts_size; i++) {
 		Stmt *stmt = task->at(i);
 		const char *src = stmt->src;
@@ -136,8 +156,7 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 		pclose(fp);
 		if (code == "" || code == "'???';\n" || code == ";\n") continue;
 		code.erase(code.size() - 1);
-		add_stmt(deparsed_stmts, stmt, code, stmt_num);
-		stmt_num++;
+		add_stmt(deparsed_stmts, stmt, code, &stmt_num_manager);
 	}
 	for (size_t i = 0; i < deparsed_stmts->size(); i++) {
 		DeparsedStmt *stmt = deparsed_stmts->at(i);
@@ -187,7 +206,7 @@ static void *run(void *args_)
 	return NULL;
 }
 
-static Stmt *decode_stmt(pTHX, HV *stmt)
+static Stmt *decode_stmt(pTHX_ HV *stmt)
 {
 	char *src = SvPVX(get_value(stmt, "src"));
 	int token_num = SvIVX(get_value(stmt, "token_num"));
@@ -198,7 +217,7 @@ static Stmt *decode_stmt(pTHX, HV *stmt)
 	return new Stmt(src, token_num, indent, block_id, start_line, end_line);
 }
 
-static void setup_task(pTHX, Task *decoded_task, HV *task)
+static void setup_task(pTHX_ Task *decoded_task, HV *task)
 {
 	const char *filename = SvPVX(get_value(task, "filename"));
 	AV *stmts_ = (AV *)SvRV(get_value(task, "stmts"));
@@ -206,23 +225,23 @@ static void setup_task(pTHX, Task *decoded_task, HV *task)
 	if (stmts) {
 		size_t stmts_size = av_len(stmts_);
 		for (size_t i = 0; i < stmts_size; i++) {
-			Stmt *stmt = decode_stmt(aTHX, (HV *)SvRV(stmts[i]));
+			Stmt *stmt = decode_stmt(aTHX_ (HV *)SvRV(stmts[i]));
 			stmt->filename = filename;
 			decoded_task->push_back(stmt);
 		}
 	}
 }
 
-AV *make_return_value(pTHX, vector<DeparsedStmt *> *deparsed_stmts)
+AV *make_return_value(pTHX_ vector<DeparsedStmt *> *deparsed_stmts)
 {
 	AV* ret  = new_Array();
 	for (size_t j = 0; j < deparsed_stmts->size(); j++) {
 		DeparsedStmt *stmt = deparsed_stmts->at(j);
 		HV *hash = (HV*)new_Hash();
-		hv_stores(hash, "hash", set(new_String(stmt->hash, strlen(stmt->hash) + 1)));
-		hv_stores(hash, "src", set(new_String(stmt->src, strlen(stmt->src) + 1)));
-		hv_stores(hash, "orig", set(new_String(stmt->orig, strlen(stmt->orig) + 1)));
-		hv_stores(hash, "file", set(new_String(stmt->file, strlen(stmt->file) + 1)));
+		hv_stores(hash, "hash", set(new_String(stmt->hash, strlen(stmt->hash))));
+		hv_stores(hash, "src", set(new_String(stmt->src, strlen(stmt->src))));
+		hv_stores(hash, "orig", set(new_String(stmt->orig, strlen(stmt->orig))));
+		hv_stores(hash, "file", set(new_String(stmt->file, strlen(stmt->file))));
 		hv_stores(hash, "lines", set(new_Int(stmt->lines)));
 		hv_stores(hash, "start_line", set(new_Int(stmt->start_line)));
 		hv_stores(hash, "end_line", set(new_Int(stmt->end_line)));
@@ -235,7 +254,7 @@ AV *make_return_value(pTHX, vector<DeparsedStmt *> *deparsed_stmts)
 			const char *parent_hash = stmt->parents.at(k);
 			av_push(parents, set(new_String(parent_hash, strlen(parent_hash))));
 		}
-		hv_stores(hash, "parent", set(new_Ref(parents)));
+		hv_stores(hash, "parents", set(new_Ref(parents)));
 		av_push(ret, set(new_Ref(hash)));
 	}
 	return (AV *)new_Ref(ret);
@@ -252,11 +271,12 @@ CODE:
 {
 	size_t tasks_size = av_len(tasks_);
 	SV **tasks = tasks_->sv_u.svu_array;
+	if (!tasks) RETVAL = (AV *)new_Ref(new_Array());
 	vector<Task *> decoded_tasks;
 	for (size_t i = 0; i <= tasks_size; i++) {
 		HV *task = (HV *)SvRV(tasks[i]);
 		decoded_tasks.push_back(new Task());
-		setup_task(aTHX, decoded_tasks.at(i), task);
+		setup_task(aTHX_ decoded_tasks.at(i), task);
 	}
 	size_t hop_n = job;
 	pthread_t th[job];
@@ -276,7 +296,7 @@ CODE:
 		merged_deparsed_stmts.insert(merged_deparsed_stmts.end(),
 									 total_deparsed_stmts[i].begin(), total_deparsed_stmts[i].end());
 	}
-	RETVAL = make_return_value(aTHX, &merged_deparsed_stmts);
+	RETVAL = make_return_value(aTHX_ &merged_deparsed_stmts);
 }
 OUTPUT:
     RETVAL
