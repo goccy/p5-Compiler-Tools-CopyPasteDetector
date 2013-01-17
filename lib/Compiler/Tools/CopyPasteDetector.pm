@@ -65,6 +65,20 @@ sub new {
     return bless($self, $class);
 }
 
+sub get_target_files_by_project_root {
+    my ($self, $root) = @_;
+    my @cur_files = glob("$root/*");
+    my @names;
+    foreach (@cur_files) {
+        if (-d $_) {
+            push(@names, @{$self->get_target_files_by_project_root($_)});
+        } else {
+            push(@names, $_) if ($_ =~ /\.p[ml]/);
+        }
+    }
+    return \@names;
+}
+
 sub detect {
     my ($self, $files) = @_;
     return $self->__parallel_detect($files) if ($self->{jobs} > 1);
