@@ -35,26 +35,26 @@ $detector->gen_html($score);
 
 =item -i, --ignore-variable-name
 
-ignore orthographic variation of variable name
+ignore orthographic variation of variable name (default: none)
 
 =item -j, --jobs=<jobs number>
 
-detect by using multiple cores
+detect by using multiple cores (default: 1)
 
 =item -t, --min-token-num=<minimal token number>
 
-change threshold to detect code clones
+change threshold to detect code clones (default: 30)
 
 =item -l, --min-line-num=<minimal line number>
 
-change threshold to detect code clones
+change threshold to detect code clones (default: 4)
 
 =item -e, --encoding=<encoding style>
 
-select target files encoding for visualizer
+set encoding of target files for visualizer (default: none)
 
 =item --order-by=<length|population|radius|nif>
 
-select default order name for code clone set metrics
+set default's order name for code clone set metrics (default: length)
 
 =back
