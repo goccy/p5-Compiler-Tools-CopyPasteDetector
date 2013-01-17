@@ -73,10 +73,11 @@ sub get_target_files_by_project_root {
         if (-d $_) {
             push(@names, @{$self->get_target_files_by_project_root($_)});
         } else {
-            push(@names, $_) if ($_ =~ /\.p[ml]/);
+            push(@names, $_) if ($_ =~ /p[ml]$/);
         }
     }
-    return \@names;
+    my @ret = map { $_ =~ s|//|/|g; $_; } @names;
+    return \@ret;
 }
 
 sub detect {
