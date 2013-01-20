@@ -25,6 +25,7 @@ use File::Basename qw/dirname basename/;
 use File::Path;
 use JSON::XS;
 use Data::Dumper;
+use Module::CoreList;
 use Compiler::Lexer;
 use Compiler::Tools::CopyPasteDetector::CloneSetMetrics;
 use Compiler::Tools::CopyPasteDetector::FileMetrics;
@@ -365,10 +366,32 @@ sub __detect {
     return \@stmts;
 }
 
+sub __make_command {
+    my ($self, $modules) = @_;
+    my $core_modules = $Module::CoreList::version{$]};
+    eval("package main; use $_; 1;") foreach (@$modules);
+    my @error_modules = grep {
+        !exists $INC{$_} && !exists $core_modules->{$_}
+    } map {
+        my $tmp = $_; $tmp =~ s|::|/|g; "$tmp.pm";
+    } @$modules;
+    if (@error_modules) {
+        warn "please install @$modules modules.\n";
+        die;
+    }
+    push(@$modules, 'Compiler::Tools::CopyPasteDetector::DeparseHooker');
+    push(@$modules, '-strict');
+    my $perl = $^X;
+    my $include_dirs .= join(' ', map { "-I$_"; } @INC);
+    my $preload_option = join(' ',  map { "-M$_"; } @$modules);
+    return "$perl $include_dirs $preload_option -MO=Deparse";
+}
+
 sub __parallel_detect {
     my ($self, $files) = @_;
     print "parallel_detecting\n";
     my @prepare;
+    my $core_modules = $Module::CoreList::version{$]};
     foreach my $filename (@$files) {
         my $script = $self->__get_script($filename);
         my $lexer = Compiler::Lexer->new($filename);
@@ -377,7 +400,9 @@ sub __parallel_detect {
             $self->__ignore_orthographic_variation_of_variable_name($tokens);
         }
         my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
-        push(@prepare, {filename => $filename, stmts => $$stmts});
+        my $modules = $lexer->get_used_modules($script);
+        my $cmd = $self->__make_command($modules);
+        push(@prepare, {filename => $filename, stmts => $$stmts, command => $cmd});
     }
     my $deparsed_stmts = get_deparsed_stmts_by_xs_parallel(\@prepare, $self->{jobs});
     return $$deparsed_stmts;
@@ -391,22 +416,30 @@ sub __get_stmt_data {
         $self->__ignore_orthographic_variation_of_variable_name($tokens);
     }
     my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
+    my $modules = $lexer->get_used_modules($script);
+    my $cmd = $self->__make_command($modules);
     my @deparsed_stmts;
     my $tmp_file = $self->{tmp};
     my @stmts = @$$stmts;
     $self->{stmt_num_manager} = +{};
     foreach my $stmt (@stmts) {
-        my $str = $stmt->{src};
+        my $src = $stmt->{src};
+        my @splitted = split(/^\s+(else|elsif)/, $src);
+        $src = $splitted[-1] if (scalar @splitted > 1);
         open(FP, ">", $tmp_file);
-        print FP $stmt->{src};
+        print FP $src;
         close(FP);
-        my $code = `perl -MList::Util -MCarp -MO=Deparse $tmp_file 2> /dev/null`;
+        my $code = `$cmd $tmp_file 2> /dev/null`;
         chomp($code);
-#        print "\n[$code] : $stmt->{start_line}, $stmt->{end_line}\n";
-        next if ($code eq "" || $code eq ";\n");
-        if ($code ne $DEPARSE_ERROR_MESSAGE) {
-            $self->__add_stmt(\@deparsed_stmts, $stmt, $code, $filename);
+        $code = "$splitted[1] $code" if (scalar @splitted > 1);
+=DEBUG
+        if ($code eq "" || $code eq ";\n" || $code eq $DEPARSE_ERROR_MESSAGE) {
+            print sprintf("%s : %s : %s\n", `$cmd $tmp_file`, $cmd, $filename);
+            print "orig : [ $stmt->{src} ]\n";
         }
+=cut
+        next if ($code eq "" || $code eq ";\n" || $code eq $DEPARSE_ERROR_MESSAGE);
+        $self->__add_stmt(\@deparsed_stmts, $stmt, $code, $filename);
     }
     foreach my $stmt (@deparsed_stmts) {
         my $start_line = $stmt->{start_line};

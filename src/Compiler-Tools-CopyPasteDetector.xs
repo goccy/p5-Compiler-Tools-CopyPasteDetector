@@ -31,6 +31,7 @@ class Stmt {
 public:
 	const char *src;
 	const char *filename;
+	const char *cmd;
 	int token_num;
 	int indent;
 	int block_id;
@@ -134,7 +135,9 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 	for (size_t i = 0; i < stmts_size; i++) {
 		Stmt *stmt = task->at(i);
 		const char *src = stmt->src;
-		char cmd_buf[256] = {0};
+		const char *cmd = stmt->cmd;
+		size_t cmd_len = strlen(cmd) + 128;
+		char cmd_buf[cmd_len];
 		FILE *fp = fopen(tmp_file_name, "w");
 		if (!fp) {
 			perror("fopen");
@@ -142,7 +145,7 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 		}
 		fprintf(fp, "%s", src);
 		fclose(fp);
-		snprintf(cmd_buf, 256, "perl -MList::Util -MCarp -MO=Deparse %s 2> /dev/null", tmp_file_name);
+		snprintf(cmd_buf, cmd_len, "%s %s 2> /dev/null", cmd, tmp_file_name);
 		fp = popen(cmd_buf, "r");
 		char read_buf[128] = {0};
 		if (!fp) {
@@ -154,6 +157,15 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 			code += string(read_buf);
 		}
 		pclose(fp);
+#ifdef DEBUG_MODE
+		if (code == "" || code == "'???';\n" || code == ";\n") {
+			memset(cmd_buf, 0, cmd_len);
+			snprintf(cmd_buf, cmd_len, "%s %s", cmd, tmp_file_name);
+			system(cmd_buf);
+			fprintf(stderr, "%s\n", stmt->filename);
+			fprintf(stderr, "orig ; [%s]\n", stmt->src);
+		}
+#endif
 		if (code == "" || code == "'???';\n" || code == ";\n") continue;
 		code.erase(code.size() - 1);
 		add_stmt(deparsed_stmts, stmt, code, &stmt_num_manager);
@@ -221,12 +233,14 @@ static void setup_task(pTHX_ Task *decoded_task, HV *task)
 {
 	const char *filename = SvPVX(get_value(task, "filename"));
 	AV *stmts_ = (AV *)SvRV(get_value(task, "stmts"));
+	const char *cmd = SvPVX(get_value(task, "command"));
 	SV **stmts = stmts_->sv_u.svu_array;
 	if (stmts) {
 		size_t stmts_size = av_len(stmts_);
 		for (size_t i = 0; i < stmts_size; i++) {
 			Stmt *stmt = decode_stmt(aTHX_ (HV *)SvRV(stmts[i]));
 			stmt->filename = filename;
+			stmt->cmd = cmd;
 			decoded_task->push_back(stmt);
 		}
 	}

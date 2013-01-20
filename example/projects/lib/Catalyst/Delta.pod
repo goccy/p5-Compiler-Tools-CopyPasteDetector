@@ -1,0 +1,217 @@
+=head1 NAME
+
+Catalyst::Delta - Overview of changes between versions of Catalyst
+
+=head1 DESCRIPTION
+
+This is an overview of the user-visible changes to Catalyst between major Catalyst releases.
+
+=head2 VERSION 5.9XXXX 'cataplack'
+
+The Catalyst::Engine sub-classes have all been removed and deprecated,
+to be replaced with Plack handlers.
+
+Plack is an implementation of the L<PSGI> specification, which is
+a standard interface between web servers and application frameworks.
+
+This should be no different for developers, and you should not have to
+migrate your applications unless you are using a custom engine already.
+
+This change benefits Catalyst significantly by reducing the amount of
+code inside the framework, and means that the framework gets upstream
+bug fixes in L<Plack>, and automatically gains support for any web server
+which a L<PSGI> compliant handler is written for.
+
+It also allows you more flexibility with your application, and allows
+the use of cross web framework 'middleware'.
+
+Developers are recommended to read L<Catalyst::Upgrading> for notes about
+upgrading, especially if you are using an unusual deployment method.
+
+Documentation for how to take advantage of L<PSGI> can be found in
+L<Catalyst::PSGI>, and information about deploying your application
+has been moved to L<Catalyst::Manual::Deployment>.
+
+=head3 Updated modules:
+
+A number of modules have been updated to pass their tests or not
+produce deprecation warnings with the latest version of Catalyst.
+It is recommended that you upgrade any of these that you are using
+after installing this version of Catalyst.
+
+These extensions are:
+
+=over
+
+=item L<Catalyst::Engine::HTTP::Prefork>
+
+This is now deprecated, see L<Catalyst::Upgrading>.
+
+=item L<Test::WWW::Mechanize::Catalyst>
+
+Has been updated to not produce deprecation warnings, upgrade recommended.
+
+=item Catalyst::ActionRole::ACL
+
+Has been updated to fix failing tests (although older versions still
+function perfectly with this version of Catalyst).
+
+=item Catalyst::Plugin::Session::Store::DBIC
+
+Has been updated to fix failing tests (although older versions still
+function perfectly with this version of Catalyst).
+
+=item Catalyst::Plugin::Authentication
+
+Has been updated to fix failing tests (although older versions still
+function perfectly with this version of Catalyst).
+
+=back
+
+=head1 PREVIOUS VERSIONS
+
+=head2 VERSION 5.8XXXX 'catamoose'
+
+=head3 Deprecations
+
+Please see L<Catalyst::Upgrading> for a full description of how changes in the
+framework may affect your application.
+
+Below is a brief list of features which have been deprecated in this release:
+
+=over
+
+=item ::[MVC]:: style naming scheme has been deprecated and will warn
+
+=item NEXT is deprecated for all applications and components, use MRO::Compat
+
+=item Dispatcher methods which are an implementation detail made private, public versions now warn.
+
+=item MyApp->plugin method is deprecated, use L<Catalyst::Model::Adaptor> instead.
+
+=item __PACKAGE__->mk_accessors() is supported for backward compatibility only, use Moose attributes instead in new code.
+
+=item Use of Catalyst::Base now warns
+
+=back
+
+=head3 New features
+
+=head3 Dispatcher
+
+=over
+
+=item Fix forwarding to Catalyst::Action objects.
+
+=item Add the dispatch_type method
+
+=back
+
+=head3 Restarter
+
+The development server restarter has been improved to be compatible with
+immutable Moose classes, and also to optionally use 
+L<B::Hooks::OP::Check::StashChange> to handle more complex application layouts
+correctly.
+
+=head3 $c->uri_for_action method.
+
+Give a private path to the Catalyst action you want to create a URI for.
+
+=head3 Logging
+
+Log levels have been made additive.
+
+=head3 L<Catalyst::Test>
+
+=over
+
+=item Change to use L<Sub::Exporter>.
+
+=item Support mocking multiple virtual hosts
+
+=item New methods like action_ok and action_redirect to write more compact tests
+
+=back
+
+=head3 Catalyst::Response
+
+=over
+
+=item *
+
+New print method which prints @data to the output stream, separated by $,.  
+This lets you pass the response object to functions that want to write to an 
+L<IO::Handle>.
+
+=item *
+
+Added code method as an alias for C<< $res->status >>
+
+=back
+
+=head3 Consequences of the Moose back end
+
+=over
+
+=item *
+
+Components are fully compatible with Moose, and all Moose features, such as
+method modifiers, attributes, roles, BUILD and BUILDARGS methods are fully
+supported and may be used in components and applications.
+
+=item *
+
+Many reusable extensions which would previously have been plugins or base 
+classes are better implemented as Moose roles.
+
+=item *
+
+L<MooseX::MethodAttributes::Inheritable> is used to contain action
+attributes. This means that attributes are represented in the MOP, and
+decouples action creation from attributes.
+
+=item *
+
+There is a reasonable API in Catalyst::Controller for working with
+and registering actions, allowing a controller sub-class to replace
+subroutine attributes for action declarations with an alternate
+syntax.
+
+=item *
+
+Refactored capturing of $app from L<Catalyst::Controller> into
+L<Catalyst::Component::ApplicationAttribute> for easier reuse in other
+components.
+
+=item *
+
+Your application class is forced to become immutable at the end of compilation.
+
+=back
+
+=head3 Bug fixes
+
+=over
+
+=item *
+
+Don't ignore SIGCHLD while handling requests with the development server, so that
+system() and other ways of creating child processes work as expected.
+
+=item *
+
+Fixes for FastCGI when used with IIS 6.0
+
+=item *
+
+Fix a bug in uri_for which could cause it to generate paths with multiple 
+slashes in them.
+
+=item *
+
+Fix a bug in Catalyst::Stats, stopping garbage being inserted into
+the stats if a user calls begin => but no end
+
+=back
+

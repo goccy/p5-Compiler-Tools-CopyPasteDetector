@@ -1,0 +1,629 @@
+=head1 NAME
+
+Catalyst::Upgrading - Instructions for upgrading to the latest Catalyst
+
+=head1 Upgrading to Catalyst 5.9
+
+The major change is that L<Plack>, a toolkit for using the L<PSGI>
+specification, now replaces most of the subclasses of L<Catalyst::Engine>. If
+you are using one of the standard subclasses of L<Catalyst::Engine> this
+should be a straightforward upgrade for you. It was a design goal for
+this release to preserve as much backwards compatibility as possible.
+However, since L<Plack> is different from L<Catalyst::Engine>, it is
+possible that differences exist for edge cases. Therefore, we recommend
+that care be taken with this upgrade and that testing should be greater
+than would be the case with a minor point update. Please inform the
+Catalyst developers of any problems so that we can fix them and
+incorporate tests.
+
+It is highly recommended that you become familiar with the L<Plack> ecosystem
+and documentation. Being able to take advantage of L<Plack> development and
+middleware is a major bonus to this upgrade. Documentation about how to
+take advantage of L<Plack::Middleware> by writing your own C<< .psgi >> file
+is contained in L<Catalyst::PSGI>.
+
+If you have created a custom subclass of L<Catalyst:Engine>, you will
+need to convert it to be a subclass of L<Plack::Handler>.
+
+If you are using the L<Plack> engine, L<Catalyst::Engine::PSGI>, this new
+release supersedes that code.
+
+If you are using a subclass of L<Catalyst::Engine> that is aimed at
+nonstandard or internal/testing uses, such as
+L<Catalyst::Engine::Embeddable>, you should still be able to continue
+using that engine.
+
+Advice for specific subclasses of L<Catalyst::Engine> follows:
+
+=head2 Upgrading the FastCGI Engine
+
+No upgrade is needed if your myapp_fastcgi.pl script is already upgraded
+to use L<Catalyst::Script::FastCGI>.
+
+=head2 Upgrading the mod_perl / Apache Engines
+
+The engines that are built upon the various iterations of mod_perl,
+L<Catalyst::Engine::Apache::MP13> (for mod_perl 1, and Apache 1.x) and
+L<Catalyst::Engine::Apache2::MP20> (for mod_perl 2, and Apache 2.x),
+should be seamless upgrades and will work using using L<Plack::Handler::Apache1>
+or L<Plack::Handler::Apache2> as required.
+
+L<Catalyst::Engine::Apache2::MP19>, however, is no longer supported, as
+Plack does not support mod_perl version 1.99. This is unlikely to be a
+problem for anyone, as 1.99 was a brief beta-test release for mod_perl
+2, and all users of mod_perl 1.99 are encouraged to upgrade to a
+supported release of Apache 2 and mod_perl 2.
+
+=head2 Upgrading the HTTP Engine
+
+The default development server that comes with the L<Catalyst> distribution
+should continue to work as expected with no changes as long as your C<myapp_server>
+script is upgraded to use L<Catalyst::Script::HTTP>.
+
+=head2 Upgrading the CGI Engine
+
+If you were using L<Catalyst::Engine::CGI> there is no upgrade needed if your
+myapp_cgi.pl script is already upgraded to use L<Catalyst::Script::CGI>.
+
+=head2 Upgrading Catalyst::Engine::HTTP::Prefork
+
+If you were using L<Catalyst::Engine::HTTP::Prefork> then L<Starman>
+is automatically loaded. You should (at least) change your C<Makefile.PL>
+to depend on Starman.
+
+You can regenerate your C<myapp_server.pl> script with C<catalyst.pl>
+and implement a C<MyApp::Script::Server> class that looks like this:
+
+    package MyApp::Script::Server;
+    use Moose;
+    use namespace::autoclean;
+
+    extends 'CatalystX::Script::Server::Starman';
+
+    1;
+
+This takes advantage of the new script system, and will add a number of
+options to the standard server script as extra options are added by
+Starman.
+
+More information about these options can be seen at
+L<CatalystX::Script::Server::Starman/SYNOPSIS>.
+
+An alternate route to implement this functionality is to write a simple .psgi
+file for your application, and then use the L<plackup> utility to start the
+server.
+
+=head2 Upgrading the PSGI Engine
+
+If you were using L<Catalyst::Engine::PSGI>, this new release supersedes
+this engine in supporting L<Plack>. By default the Engine is now always
+L<Plack>. As a result, you can remove the dependency on
+L<Catalyst::Engine::PSGI> in your C<Makefile.PL>.
+
+Applications that were using L<Catalyst::Engine::PSGI>
+previously should entirely continue to work in this release with no changes.
+
+However, if you have an C<app.psgi> script, then you no longer need to
+specify the PSGI engine. Instead, the L<Catalyst> application class now
+has a new method C<psgi_app> which returns a L<PSGI> compatible coderef
+which you can wrap in the middleware of your choice.
+
+Catalyst will use the .psgi for your application if it is located in the C<home>
+directory of the application.
+
+For example, if you were using L<Catalyst::Engine::PSGI> in the past, you will
+have written (or generated) a C<script/myapp.psgi> file similar to this one:
+
+    use Plack::Builder;
+    use MyCatalytApp;
+
+    MyCatalystApp->setup_engine('PSGI');
+
+    builder {
+        enable ... # enable your desired middleware
+        sub { MyCatalystApp->run(@_) };
+    };
+
+Instead, you now say:
+
+    use Plack::Builder;
+    use MyCatalystApp;
+
+    builder {
+        enable ... #enable your desired middleware
+        MyCatalystApp->psgi_app;
+    };
+
+In the simplest case:
+
+    MyCatalystApp->setup_engine('PSGI');
+    my $app = sub { MyCatalystApp->run(@_) }
+
+becomes
+
+    my $app = MyCatalystApp->psgi_app(@_);
+
+B<NOT>:
+
+    my $app = sub { MyCatalystApp->psgi_app(@_) };
+    # If you make ^^ this mistake, your app won't work, and will confuse the hell out of you!
+
+You can now move C<< script/myapp.psgi >> to C<< myapp.psgi >>, and the built-in
+Catalyst scripts and your test suite will start using your .psgi file.
+
+B<NOTE:> If you rename your .psgi file without these modifications, then
+any tests run via L<Catalyst::Test> will not be compatible with the new
+release, and will result in the development server starting, rather than
+the expected test running.
+
+B<NOTE:> If you are directly accessing C<< $c->req->env >> to get the PSGI
+environment then this accessor is moved to C<< $c->engine->env >>,
+you will need to update your code.
+
+=head2 Engines which are known to be broken
+
+The following engines B<DO NOT> work as of Catalyst version 5.9. The
+core team will be happy to work with the developers and/or users of
+these engines to help them port to the new Plack/Engine system, but for
+now, applications which are currently using these engines B<WILL NOT>
+run without modification to the engine code.
+
+=over
+
+=item Catalyst::Engine::Wx
+
+=item Catalyst::Engine::Zeus
+
+=item Catalyst::Engine::JobQueue::POE
+
+=item Catalyst::Engine::XMPP2
+
+=item Catalyst::Engine::SCGI
+
+=back
+
+=head2 Engines with unknown status
+
+The following engines are untested or have unknown compatibility.
+Reports are highly encouraged:
+
+=over
+
+=item Catalyst::Engine::Mojo
+
+=item Catalyst::Engine::Server (marked as Deprecated)
+
+=item Catalyst::Engine::HTTP::POE (marked as Deprecated)
+
+=back
+
+=head2 Plack functionality
+
+See L<Catalyst::PSGI>.
+
+=head2 Tests in 5.9
+
+Tests should generally work the same in Catalyst 5.9, but there are
+some differences.
+
+Previously, if using L<Catalyst::Test> and doing local requests (against
+a local server), if the application threw an exception then this
+exception propagated into the test.
+
+This behavior has been removed, and now a 500 response will be returned
+to the test. This change standardizes behavior, so that local test
+requests behave similarly to remote requests.
+
+=head1 Upgrading to Catalyst 5.80
+
+Most applications and plugins should run unaltered on Catalyst 5.80.
+
+However, a lot of refactoring work has taken place, and several changes have
+been made which could cause incompatibilities. If your application or plugin
+is using deprecated code, or relying on side effects, then you could have
+issues upgrading to this release.
+
+Most issues found with existing components have been easy to
+solve. This document provides a complete description of behavior changes
+which may cause compatibility issues, and of new Catalyst warnings which
+might be unclear.
+
+If you think you have found an upgrade-related issue which is not covered in
+this document, please email the Catalyst list to discuss the problem.
+
+=head1 Moose features
+
+=head2 Application class roles
+
+You can only apply method modifiers after the application's C<< ->setup >>
+method has been called. This means that modifiers will not work with methods
+run during the call to C<< ->setup >>.
+
+See L<Catalyst::Manual::ExtendingCatalyst> for more information about using
+L<Moose> in your applications.
+
+=head2 Controller actions in Moose roles
+
+You can use L<MooseX::MethodAttributes::Role> if you want to declare actions
+inside Moose roles.
+
+=head2 Using Moose in Components
+
+The correct way to use Moose in a component in a both forward and backwards
+compatible way is:
+
+    package TestApp::Controller::Root;
+    use Moose;
+    BEGIN { extends 'Catalyst::Component' }; # Or ::Controller, or whatever
+
+See L<Components which inherit from Moose::Object before Catalyst::Component>.
+
+=head1 Known backwards compatibility breakages
+
+=head2 Applications in a single file
+
+Applications must be in their own file, and loaded at compile time. This
+issue generally only affects the tests of CPAN distributions. Your
+application will fail if you try to define an application inline in a
+block, and use plugins which supply a C< new > method, then use that
+application latter in tests within the same file.
+
+This is due to the fact that Catalyst is inlining a new method on your
+application class allowing it to be compatible with Moose. The method
+used to do this changed in 5.80004 to avoid the possibility of reporting
+an 'Unknown Error' if your application failed to compile.
+
+=head2 Issues with Class::C3
+
+Catalyst 5.80 uses the L<Algorithm::C3> method dispatch order. This is
+built into Perl 5.10, and comes via L<Class::C3> for Perl 5.8. This
+replaces L<NEXT> with L<Class::C3::Adopt::NEXT>, forcing all components
+to resolve methods using C3, rather than the unpredictable dispatch
+order of L<NEXT>.
+
+This issue manifests itself by your application failing to start due to an
+error message about having a non-linear @ISA.
+
+The Catalyst plugin most often causing this is
+L<Catalyst::Plugin::Session::Store::FastMmap> - if you are using this
+plugin and see issues, then please upgrade your plugins, as it has been
+fixed. Note that Makefile.PL in the distribution will warn about known
+incompatible components.
+
+This issue can, however, be found in your own application - the only solution is
+to go through each base class of the class the error was reported against, until
+you identify the ones in conflict, and resolve them.
+
+To be able to generate a linear @ISA, the list of superclasses for each
+class must be resolvable using the C3 algorithm. Unfortunately, when
+superclasses are being used as mixins (to add functionality used in your class),
+and with multiple inheritance, it is easy to get this wrong.
+
+Most common is the case of:
+
+    package Component1; # Note, this is the common case
+    use base qw/Class::Accessor::Fast Class::Data::Inheritable/;
+
+    package Component2; # Accidentally saying it this way causes a failure
+    use base qw/Class::Data::Inheritable Class::Accessor::Fast/;
+
+    package GoesBang;
+    use base qw/Component1 Component2/;
+
+Any situation like this will cause your application to fail to start.
+
+For additional documentation about this issue, and how to resolve it, see
+L<Class::C3::Adopt::NEXT>.
+
+=head2 Components which inherit from Moose::Object before Catalyst::Component
+
+Moose components which say:
+
+    package TestApp::Controller::Example;
+    use Moose;
+    extends qw/Moose::Object Catalyst::Component/;
+
+to use the constructor provided by Moose, while working (if you do some hacks
+with the C< BUILDARGS > method), will not work with Catalyst 5.80 as
+C<Catalyst::Component> inherits from C<Moose::Object>, and so C< @ISA > fails
+to linearize.
+
+The correct way to use Moose in a component in a both forward and backwards
+compatible way is:
+
+    package TestApp::Controller::Root;
+    use Moose;
+    BEGIN { extends 'Catalyst::Component' }; # Or ::Controller, or whatever
+
+Note that the C< extends > declaration needs to occur in a begin block for
+L<attributes> to operate correctly.
+
+This way you do not inherit directly from C<Moose::Object>
+yourself. Having components which do not inherit their constructor from
+C<Catalyst::Component> is B<unsupported>, and has never been recommended,
+therefore you're on your own if you're using this technique. You'll need
+to detect the version of Catalyst your application is running, and deal
+with it appropriately.
+
+You also don't get the L<Moose::Object> constructor, and therefore attribute
+initialization will not work as normally expected. If you want to use Moose
+attributes, then they need to be made lazy to correctly initialize.
+
+Note that this only applies if your component needs to maintain component
+backwards compatibility for Catalyst versions before 5.71001 - in 5.71001
+attributes work as expected, and the BUILD method is called normally
+(although BUILDARGS is not).
+
+If you depend on Catalyst 5.8, then B<all> Moose features work as expected.
+
+You will also see this issue if you do the following:
+
+    package TestApp::Controller::Example;
+    use Moose;
+    use base 'Catalyst::Controller';
+
+as C< use base > appends to @ISA.
+
+=head3 use Moose in MyApp
+
+Similar to the above, this will also fail:
+
+    package MyApp;
+    use Moose;
+    use Catalyst qw/
+      ConfigLoader
+    /;
+    __PACKAGE__->setup;
+
+If you need to use Moose in your application class (e.g. for method modifiers
+etc.) then the correct technique is:
+
+    package MyApp;
+    use Moose;
+    use Catalyst;
+
+    extends 'Catalyst';
+
+    __PACKAGE__->config( name => 'MyApp' );
+    __PACKAGE__->setup(qw/
+        ConfigLoader
+    /);
+
+=head2 Anonymous closures installed directly into the symbol table
+
+If you have any code which installs anonymous subroutine references directly
+into the symbol table, you may encounter breakages. The simplest solution is
+to use L<Sub::Name> to name the subroutine. Example:
+
+    # Original code, likely to break:
+    my $full_method_name = join('::', $package_name, $method_name);
+    *$full_method_name = sub { ... };
+
+    # Fixed Code
+    use Sub::Name 'subname';
+    my $full_method_name = join('::',$package_name, $method_name);
+    *$full_method_name = subname $full_method_name, sub { ... };
+
+Additionally, you can take advantage of Catalyst's use of L<Class::MOP> and
+install the closure using the appropriate metaclass. Example:
+
+    use Class::MOP;
+    my $metaclass = Moose::Meta::Class->initialize($package_name);
+    $metaclass->add_method($method_name => sub { ... });
+
+=head2 Hooking into application setup
+
+To execute code during application start-up, the following snippet in MyApp.pm
+used to work:
+
+    sub setup {
+        my ($class, @args) = @_;
+        $class->NEXT::setup(@args);
+        ... # things to do after the actual setup
+    }
+
+With Catalyst 5.80 this won't work anymore, because Catalyst no longer
+uses NEXT.pm for method resolution. The functionality was only ever
+originally operational as L<NEXT> remembers what methods have already
+been called, and will not call them again.
+
+Using this now causes infinite recursion between MyApp::setup and
+Catalyst::setup, due to other backwards compatibility issues related to how
+plugin setup works. Moose method modifiers like C<< before|after|around setup
+=> sub { ... }; >> also will not operate correctly on the setup method.
+
+The right way to do it is this:
+
+    after setup_finalize => sub {
+        ... # things to do after the actual setup
+    };
+
+The setup_finalize hook was introduced as a way to avoid this issue.
+
+=head2 Components with a new method which returns false
+
+Previously, if you had a component which inherited from Catalyst::COMPONENT,
+but overrode the new method to return false, then your class's configuration
+would be blessed into a hash on your behalf, and this would be returned from
+the COMPONENT method.
+
+This behavior makes no sense, and so has been removed. Implementing your own
+C< new > method in components is B<highly> discouraged. Instead, you should
+inherit the new method from Catalyst::Component, and use Moose's BUILD
+functionality and/or Moose attributes to perform any construction work
+necessary for your class.
+
+=head2 __PACKAGE__->mk_accessor('meta');
+
+Won't work due to a limitation of L<Moose>. This is currently being fixed
+inside Moose.
+
+=head2 Class::Data::Inheritable side effects
+
+Previously, writing to a class data accessor would copy the accessor method
+down into your package.
+
+This behavior has been removed. While the class data is still stored
+per-class, it is stored on the metaclass of the class defining the accessor.
+
+Therefore anything relying on the side effect of the accessor being copied down
+will be broken.
+
+The following test demonstrates the problem:
+
+    {
+        package BaseClass;
+        use base qw/Class::Data::Inheritable/;
+        __PACKAGE__->mk_classdata('foo');
+    }
+
+    {
+        package Child;
+        use base qw/BaseClass/;
+    }
+
+    BaseClass->foo('base class');
+    Child->foo('sub class');
+
+    use Test::More;
+    isnt(BaseClass->can('foo'), Child->can('foo'));
+
+=head2 Extending Catalyst::Request or other classes in an ad hoc manner using mk_accessors
+
+Previously, it was possible to add additional accessors to Catalyst::Request
+(or other classes) by calling the mk_accessors class method.
+
+This is no longer supported - users should make a subclass of the class whose
+behavior they would like to change, rather than globally polluting the
+Catalyst objects.
+
+=head2 Confused multiple inheritance with Catalyst::Component::COMPONENT
+
+Previously, Catalyst's COMPONENT method would delegate to the method on
+the right hand side, which could then delegate back again with
+NEXT. This is poor practice, and in addition, makes no sense with C3
+method dispatch order, and is therefore no longer supported.
+
+If a COMPONENT method is detected in the inheritance hierarchy to the right
+hand side of Catalyst::Component::COMPONENT, then the following warning
+message will be emitted:
+
+    There is a COMPONENT method resolving after Catalyst::Component
+    in ${next_package}.
+
+The correct fix is to re-arrange your class's inheritance hierarchy so that the
+COMPONENT method you would like to inherit is the first (left-hand most)
+COMPONENT method in your @ISA.
+
+=head2 Development server relying on environment variables
+
+Previously, the development server would allow propagation of system
+environment variables into the request environment, this has changed with the
+adoption of Plack. You can use L<Plack::Middleware::ForceEnv> to achieve the
+same effect.
+
+=head1 WARNINGS
+
+=head2 Actions in your application class
+
+Having actions in your application class will now emit a warning at application
+startup as this is deprecated. It is highly recommended that these actions are moved
+into a MyApp::Controller::Root (as demonstrated by the scaffold application
+generated by catalyst.pl). 
+
+This warning, also affects tests. You should move actions in your test,
+creating a myTest::Controller::Root, like the following example:
+
+    package MyTest::Controller::Root;
+
+    use strict;
+    use warnings;
+
+    use parent 'Catalyst::Controller';
+
+    __PACKAGE__->config(namespace => '');
+
+    sub action : Local {
+        my ( $self, $c ) = @_;
+        $c->do_something; 
+    }
+
+    1;
+
+=head2 ::[MVC]:: naming scheme
+
+Having packages called MyApp::[MVC]::XX is deprecated and can no longer be generated
+by catalyst.pl
+
+This is still supported, but it is recommended that you rename your application
+components to Model/View/Controller.
+
+A warning will be issued at application startup if the ::[MVC]:: naming scheme is
+in use.
+
+=head2 Catalyst::Base
+
+Any code using L<Catalyst::Base> will now emit a warning; this
+module will be removed in a future release.
+
+=head2 Methods in Catalyst::Dispatcher
+
+The following methods in Catalyst::Dispatcher are implementation
+details, which may change in the 5.8X release series, and therefore their use
+is highly deprecated.
+
+=over
+
+=item tree
+
+=item dispatch_types
+
+=item registered_dispatch_types
+
+=item method_action_class
+
+=item action_hash
+
+=item container_hash
+
+=back
+
+The first time one of these methods is called, a warning will be emitted:
+
+    Class $class is calling the deprecated method Catalyst::Dispatcher::$public_method_name,
+    this will be removed in Catalyst 5.9
+
+You should B<NEVER> be calling any of these methods from application code.
+
+Plugin authors and maintainers whose plugins currently call these methods
+should change to using the public API, or, if you do not feel the public API
+adequately supports your use case, please email the development list to
+discuss what API features you need so that you can be appropriately supported.
+
+=head2 Class files with names that don't correspond to the packages they define
+
+In this version of Catalyst, if a component is loaded from disk, but no
+symbols are defined in that component's name space after it is loaded, this
+warning will be issued:
+
+    require $class was successful but the package is not defined.
+
+This is to protect against confusing bugs caused by mistyping package names,
+and will become a fatal error in a future version.
+
+Please note that 'inner packages' (via L<Devel::InnerPackage>) are still fully
+supported; this warning is only issued when component file naming does not map
+to B<any> of the packages defined within that component.
+
+=head2 $c->plugin method
+
+Calling the plugin method is deprecated, and calling it at run time is B<highly
+deprecated>.
+
+Instead you are recommended to use L<Catalyst::Model::Adaptor> or similar to
+compose the functionality you need outside of the main application name space.
+
+Calling the plugin method will not be supported past Catalyst 5.81.
+
+=cut
+
