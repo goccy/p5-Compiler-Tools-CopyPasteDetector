@@ -130,6 +130,7 @@ sub __make_scattergram_objects {
     my $size = 0;
     my $children = $self->__serialize_children($self->__traverse($self->{root}));
     $size += scalar keys %$_ foreach (@$children);
+    return if ($size == 0);
     my $change_length = 1200 / $size;
     my $x = $self->{x};
     my $y = $self->{y};

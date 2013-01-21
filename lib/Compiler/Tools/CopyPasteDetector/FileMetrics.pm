@@ -40,15 +40,6 @@ sub get_coverage_score {
     return $self->__get_ratio_of_target_token_to_all_token(sub { 1; });
 }
 
-sub __get_script {
-    my ($self, $filename) = @_;
-    my $script = "";
-    open(my $fh, "<", $filename) or die("Error");
-    $script .= $_ foreach (<$fh>);
-    close($fh);
-    return $script;
-}
-
 sub __get_ratio_of_target_token_to_all_token {
     my ($self, $cond) = @_;
     my $filename = $self->{info}->{name};

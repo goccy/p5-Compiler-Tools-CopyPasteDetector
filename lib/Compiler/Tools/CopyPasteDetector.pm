@@ -313,7 +313,7 @@ sub __output_clone_data {
     close($fp);
     my $json = JSON::XS->new();
     open($fp, '>', "$output_dir/js/output.json");
-    print $fp $json->encode($self->{root}->{root});
+    print $fp $json->encode($self->{root}->{root}) if defined $self->{root}->{root};
     close($fp);
 }
 
@@ -369,21 +369,27 @@ sub __detect {
 sub __make_command {
     my ($self, $modules) = @_;
     my $core_modules = $Module::CoreList::version{$]};
-    eval("package main; use $_; 1;") foreach (@$modules);
+    eval("package main; use $_->{name}; 1;") foreach (@$modules);
     my @error_modules = grep {
         !exists $INC{$_} && !exists $core_modules->{$_}
     } map {
-        my $tmp = $_; $tmp =~ s|::|/|g; "$tmp.pm";
+        my $tmp = $_->{name}; $tmp =~ s|::|/|g; "$tmp.pm";
     } @$modules;
     if (@error_modules) {
-        warn "please install @$modules modules.\n";
+        warn sprintf("Can't locate %s\n", join(', ', @error_modules));
         die;
     }
-    push(@$modules, 'Compiler::Tools::CopyPasteDetector::DeparseHooker');
-    push(@$modules, '-strict');
+    push(@$modules, { name => 'Compiler::Tools::CopyPasteDetector::DeparseHooker', args => undef});
+    push(@$modules, { name => '-strict', args => undef});
     my $perl = $^X;
     my $include_dirs .= join(' ', map { "-I$_"; } @INC);
-    my $preload_option = join(' ',  map { "-M$_"; } @$modules);
+    my $preload_option = join(' ', map {
+        if (defined $_->{args}) {
+            sprintf("'-M%s qw(%s)'", $_->{name}, $_->{args});
+        } else {
+            sprintf("-M%s", $_->{name});
+        }
+    } @$modules);
     return "$perl $include_dirs $preload_option -MO=Deparse";
 }
 
@@ -391,7 +397,6 @@ sub __parallel_detect {
     my ($self, $files) = @_;
     print "parallel_detecting\n";
     my @prepare;
-    my $core_modules = $Module::CoreList::version{$]};
     foreach my $filename (@$files) {
         my $script = $self->__get_script($filename);
         my $lexer = Compiler::Lexer->new($filename);
