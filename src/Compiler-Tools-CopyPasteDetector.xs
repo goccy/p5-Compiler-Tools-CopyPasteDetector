@@ -145,6 +145,15 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 			perror("fopen");
 			exit(EXIT_FAILURE);
 		}
+		bool is_else = false;
+		bool is_elsif = false;
+		if (string(src).find("else") == 1) {
+			src += 5;
+			is_else = true;
+		} else if (string(src).find("elsif") == 1) {
+			src += 4;
+			is_elsif = true;
+		}
 		fprintf(fp, "%s", src);
 		fclose(fp);
 		snprintf(cmd_buf, cmd_len, "%s %s 2> /dev/null", cmd, tmp_file_name);
@@ -155,6 +164,11 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 			exit(EXIT_FAILURE);
 		}
 		string code = "";
+		if (is_else) {
+			code = "else ";
+		} else if (is_elsif) {
+			code = "els";
+		}
 		while ((fgets(read_buf , 128 , fp)) != NULL) {
 			code += string(read_buf);
 		}
@@ -165,6 +179,7 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 			snprintf(cmd_buf, cmd_len, "%s %s", cmd, tmp_file_name);
 			system(cmd_buf);
 			fprintf(stderr, "%s\n", stmt->filename);
+			fprintf(stderr, "%s\n", cmd_buf);
 			fprintf(stderr, "orig ; [%s]\n", stmt->src);
 		}
 #endif
