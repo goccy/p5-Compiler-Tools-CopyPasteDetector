@@ -347,7 +347,8 @@ sub __ignore_orthographic_variation_of_variable_name {
         Compiler::Lexer::TokenType::T_LocalHashVar,
         Compiler::Lexer::TokenType::T_GlobalVar,
         Compiler::Lexer::TokenType::T_GlobalArrayVar,
-        Compiler::Lexer::TokenType::T_GlobalHashVar);
+        Compiler::Lexer::TokenType::T_GlobalHashVar
+    );
     foreach my $token (@$$tokens) {
         if (grep { $_ == $token->{type} } @variables) {
             $token->{data} = substr($token->{data}, 0, 1) . "v";
@@ -385,7 +386,7 @@ sub __make_command {
     my $include_dirs .= join(' ', map { "-I$_"; } @INC);
     my $preload_option = join(' ', map {
         if (defined $_->{args}) {
-            sprintf("'-M%s qw(%s)'", $_->{name}, $_->{args});
+            sprintf("'-M%s %s'", $_->{name}, $_->{args});
         } else {
             sprintf("-M%s", $_->{name});
         }
