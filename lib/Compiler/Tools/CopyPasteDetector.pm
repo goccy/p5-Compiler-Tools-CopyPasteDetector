@@ -381,14 +381,13 @@ sub __make_command {
         die;
     }
     push(@$modules, { name => 'Compiler::Tools::CopyPasteDetector::DeparseHooker', args => undef});
-    push(@$modules, { name => '-strict', args => undef});
     my $perl = $^X;
     my $include_dirs .= join(' ', map { "-I$_"; } @INC);
     my $preload_option = join(' ', map {
         if (defined $_->{args}) {
-            sprintf("'-M%s %s'", $_->{name}, $_->{args});
+            sprintf('"-M%s %s" -M-strict', $_->{name}, $_->{args});
         } else {
-            sprintf("-M%s", $_->{name});
+            sprintf("-M%s -M-strict", $_->{name});
         }
     } @$modules);
     return "$perl $include_dirs $preload_option -MO=Deparse";
