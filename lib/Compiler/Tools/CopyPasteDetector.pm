@@ -385,7 +385,9 @@ sub __make_command {
     my $include_dirs .= join(' ', map { "-I$_"; } @INC);
     my $preload_option = join(' ', map {
         if (defined $_->{args}) {
-            sprintf('"-M%s %s" -M-strict', $_->{name}, $_->{args});
+            my $args = $_->{args};
+            $args =~ s/"/\\"/g;
+            sprintf('"-M%s %s" -M-strict', $_->{name}, $args);
         } else {
             sprintf("-M%s -M-strict", $_->{name});
         }
