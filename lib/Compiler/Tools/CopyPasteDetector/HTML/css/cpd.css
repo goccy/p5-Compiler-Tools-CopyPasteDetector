@@ -4,13 +4,14 @@ body, html {
     height: 100%;
     min-width: 1400px;
     margin: 0px;
+    /*zoom: 80%;*/
 }
 
 .cpd-hidden-location {
     display:none;
 }
 
-.cpd-header h2 {
+.cpd-header h3 {
     text-align: center;
 }
 
@@ -32,6 +33,7 @@ body, html {
     -moz-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
     -webkit-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
     box-shadow: 0 0 0 4px #fffff8, 1px 1px 6px 3px rgba(10,10,0,.5);
+    zoom: 70%;
 }
 
 .cpd-subtitle {
@@ -62,7 +64,8 @@ body, html {
 }
 
 .cpd-file-tree-area {
-    position: relative;
+    position: absolute;
+    /*position: relative;*/
     vertical-align: top;
     display: inline-block;
     width: 24%;
@@ -75,7 +78,9 @@ body, html {
 }
 
 .cpd-main-menu-area {
-    position: relative;
+    position: absolute;
+    /*position: relative;*/
+    left: 24%;
     vertical-align: top;
     display: inline-block;
     width: 75%;
@@ -221,6 +226,10 @@ body, html {
 	background-color:white;
 }
 
+.popup-window div {
+
+}
+
 .detail-contents {
     position: relative;
     display: inline-block;
@@ -273,7 +282,7 @@ ul {
     height: 80px;
     width: 100%;
     color: white;
-    font-size: 16px;
+    font-size: 14px;
     background-image: url("images/gray.png");
 }
 
