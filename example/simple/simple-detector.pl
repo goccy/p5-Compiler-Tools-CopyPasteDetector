@@ -19,6 +19,7 @@ GetOptions(
 pod2usage(1) if $options->{help};
 my $project_root = $ARGV[0];
 defined $project_root or die "please define 'project root'\n";
+unshift @INC, $project_root;
 my $detector = Compiler::Tools::CopyPasteDetector->new($options);
 my $files = $detector->get_target_files_by_project_root($project_root);
 my $data = $detector->detect($files);

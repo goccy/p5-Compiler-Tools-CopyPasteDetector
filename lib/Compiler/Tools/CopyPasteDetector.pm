@@ -31,7 +31,7 @@ use Compiler::Tools::CopyPasteDetector::CloneSetMetrics;
 use Compiler::Tools::CopyPasteDetector::FileMetrics;
 use Compiler::Tools::CopyPasteDetector::DirectoryMetrics;
 use Compiler::Tools::CopyPasteDetector::Scattergram;
-
+use constant DEBUG => 0;
 ### ================== Constants ======================== ###
 
 # B::Deparse's BUG [1; => '???';]
@@ -386,8 +386,8 @@ sub __make_command {
     my $preload_option = join(' ', map {
         if (defined $_->{args}) {
             my $args = $_->{args};
-            $args =~ s/"/\\"/g;
-            sprintf('"-M%s %s" -M-strict', $_->{name}, $args);
+            $args =~ s/'/'\\''/g;
+            sprintf("'-M%s %s' -M-strict", $_->{name}, $args);
         } else {
             sprintf("-M%s -M-strict", $_->{name});
         }
@@ -439,12 +439,12 @@ sub __get_stmt_data {
         my $code = `$cmd $tmp_file 2> /dev/null`;
         chomp($code);
         $code = "$splitted[1] $code" if (scalar @splitted > 1);
-=DEBUG
-        if ($code eq "" || $code eq ";\n" || $code eq $DEPARSE_ERROR_MESSAGE) {
-            print sprintf("%s : %s : %s\n", `$cmd $tmp_file`, $cmd, $filename);
-            print "orig : [ $stmt->{src} ]\n";
+        if (DEBUG) {
+            if ($code eq "" || $code eq ";\n" || $code eq $DEPARSE_ERROR_MESSAGE) {
+                print sprintf("%s : %s : %s\n", `$cmd $tmp_file`, $cmd, $filename);
+                print "orig : [ $stmt->{src} ]\n";
+            }
         }
-=cut
         next if ($code eq "" || $code eq ";\n" || $code eq $DEPARSE_ERROR_MESSAGE);
         $self->__add_stmt(\@deparsed_stmts, $stmt, $code, $filename);
     }
