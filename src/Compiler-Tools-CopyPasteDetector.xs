@@ -25,7 +25,6 @@ extern "C" {
 #include <pthread.h>
 #define MAX_JOB_NUM 32
 #define get_value(hash, key) *hv_fetchs(hash, key, strlen(key))
-#define DEBUG_MODE 1
 
 using namespace std;
 

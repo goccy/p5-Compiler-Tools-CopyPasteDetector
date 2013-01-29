@@ -14,7 +14,7 @@ makemaker_args->{CC} = 'g++';
 makemaker_args->{LD} = 'g++';
 if (DEBUG) {
     makemaker_args->{OPTIMIZE} = '-O0';
-    makemaker_args->{CCFLAGS} = '-g3 ' . makemaker_args->{CCFLAGS};
+    makemaker_args->{CCFLAGS} = '-g3 -DDEBUG' . makemaker_args->{CCFLAGS};
 }
 
 WriteAll(check_nmake => 0);
