@@ -412,6 +412,9 @@ sub __parallel_detect {
         my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
         my $modules = $lexer->get_used_modules($script);
         my $cmd = $self->__make_command($modules);
+        foreach my $stmt (@$$stmts) {
+            $stmt->{src} =~ s/'/'\\''/g;
+        }
         push(@prepare, {filename => $filename, stmts => $$stmts, command => $cmd});
     }
     my $deparsed_stmts = get_deparsed_stmts_by_xs_parallel(\@prepare, $self->{jobs});

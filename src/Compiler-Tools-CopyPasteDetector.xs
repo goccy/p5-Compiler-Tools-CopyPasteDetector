@@ -140,15 +140,8 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 		Stmt *stmt = task->at(i);
 		const char *src = stmt->src;
 		const char *cmd = (stmt->has_warnings) ? stmt->full_cmd : stmt->normal_cmd;
-		size_t cmd_len = strlen(cmd) + 128;
+		size_t cmd_len = strlen(cmd) + strlen(src) + 128;
 		char cmd_buf[cmd_len];
-
-		FILE *fp = fopen(tmp_file_name, "w");
-		if (!fp) {
-			perror("fopen");
-			exit(EXIT_FAILURE);
-		}
-
 		bool is_else = false;
 		bool is_elsif = false;
 		if (string(src).find("else") == 1) {
@@ -158,10 +151,8 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 			src += 4;
 			is_elsif = true;
 		}
-		fprintf(fp, "%s", src);
-		fclose(fp);
-		snprintf(cmd_buf, cmd_len, "%s %s 2> /dev/null", cmd, tmp_file_name);
-		fp = popen(cmd_buf, "r");
+		snprintf(cmd_buf, cmd_len, "%s -e '%s' 2> /dev/null", cmd, src);
+		FILE *fp = popen(cmd_buf, "r");
 		char read_buf[128] = {0};
 		if (!fp) {
 			perror("popen");
@@ -180,11 +171,11 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 #ifdef DEBUG_MODE
 		if (code == "" || code == "'???';\n" || code == ";\n") {
 			memset(cmd_buf, 0, cmd_len);
-			snprintf(cmd_buf, cmd_len, "%s %s", cmd, tmp_file_name);
+			snprintf(cmd_buf, cmd_len, "%s -e '%s'", cmd, src);
 			system(cmd_buf);
 			fprintf(stderr, "%s\n", stmt->filename);
-			fprintf(stderr, "%s\n", cmd_buf);
-			fprintf(stderr, "orig ; [%s]\n", stmt->src);
+			fprintf(stderr, "cmd : [%s]\n", cmd_buf);
+			fprintf(stderr, "orig : [%s]\n", src);
 		}
 #endif
 		if (code == "" || code == "'???';\n" || code == ";\n") continue;
