@@ -31,7 +31,7 @@ use Compiler::Tools::CopyPasteDetector::CloneSetMetrics;
 use Compiler::Tools::CopyPasteDetector::FileMetrics;
 use Compiler::Tools::CopyPasteDetector::DirectoryMetrics;
 use Compiler::Tools::CopyPasteDetector::Scattergram;
-use constant DEBUG => 0;
+use constant DEBUG => 1;
 ### ================== Constants ======================== ###
 
 # B::Deparse's BUG [1; => '???';]
@@ -74,7 +74,7 @@ sub get_target_files_by_project_root {
         if (-d $_) {
             push(@names, @{$self->get_target_files_by_project_root($_)});
         } else {
-            push(@names, $_) if ($_ =~ /p[ml]$/);
+            push(@names, $_) if ($_ =~ /\.p[ml]$/);
         }
     }
     my @ret = map { $_ =~ s|//|/|g; $_; } @names;
@@ -392,7 +392,10 @@ sub __make_command {
             sprintf("-M%s -M-strict", $_->{name});
         }
     } @$modules);
-    return "$perl $include_dirs $preload_option -MO=Deparse";
+    return {
+        normal => "$perl -MO=Deparse",
+        full   => "$perl $include_dirs $preload_option -MO=Deparse"
+    };
 }
 
 sub __parallel_detect {
@@ -433,19 +436,18 @@ sub __get_stmt_data {
         my $src = $stmt->{src};
         my @splitted = split(/^\s+(else|elsif)/, $src);
         $src = $splitted[-1] if (scalar @splitted > 1);
-        open(FP, ">", $tmp_file);
-        print FP $src;
-        close(FP);
-        my $code = `$cmd $tmp_file 2> /dev/null`;
+        $src =~ s/'/'\\''/g;
+        my $cmd = ($stmt->{has_warnings}) ? $cmd->{full} : $cmd->{normal};
+        my $code = `$cmd -e '$src' 2> /dev/null`;
         chomp($code);
         $code = "$splitted[1] $code" if (scalar @splitted > 1);
-        if (DEBUG) {
-            if ($code eq "" || $code eq ";\n" || $code eq $DEPARSE_ERROR_MESSAGE) {
-                print sprintf("%s : %s : %s\n", `$cmd $tmp_file`, $cmd, $filename);
+        if ($code eq "" || $code eq ";\n" || $code eq $DEPARSE_ERROR_MESSAGE) {
+            if (DEBUG) {
+                #print sprintf("%s : %s : %s\n", `$cmd`, $cmd, $filename);
                 print "orig : [ $stmt->{src} ]\n";
             }
+            next;
         }
-        next if ($code eq "" || $code eq ";\n" || $code eq $DEPARSE_ERROR_MESSAGE);
         $self->__add_stmt(\@deparsed_stmts, $stmt, $code, $filename);
     }
     foreach my $stmt (@deparsed_stmts) {

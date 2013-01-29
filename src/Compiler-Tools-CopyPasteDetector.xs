@@ -33,16 +33,18 @@ class Stmt {
 public:
 	const char *src;
 	const char *filename;
-	const char *cmd;
+	const char *full_cmd;
+	const char *normal_cmd;
 	int token_num;
 	int indent;
 	int block_id;
 	int start_line;
 	int end_line;
+	int has_warnings;
 	Stmt(const char *src_, int token_num_, int indent_, int block_id_,
-		 int start_line_, int end_line_) :
+		 int start_line_, int end_line_, int has_warnings_) :
 		src(src_), token_num(token_num_), indent(indent_), block_id(block_id_),
-		start_line(start_line_), end_line(end_line_) {}
+		start_line(start_line_), end_line(end_line_), has_warnings(has_warnings_) {}
 };
 
 class DeparsedStmt {
@@ -137,14 +139,16 @@ static void set_deparsed_stmts(vector<DeparsedStmt *> *deparsed_stmts, Task *tas
 	for (size_t i = 0; i < stmts_size; i++) {
 		Stmt *stmt = task->at(i);
 		const char *src = stmt->src;
-		const char *cmd = stmt->cmd;
+		const char *cmd = (stmt->has_warnings) ? stmt->full_cmd : stmt->normal_cmd;
 		size_t cmd_len = strlen(cmd) + 128;
 		char cmd_buf[cmd_len];
+
 		FILE *fp = fopen(tmp_file_name, "w");
 		if (!fp) {
 			perror("fopen");
 			exit(EXIT_FAILURE);
 		}
+
 		bool is_else = false;
 		bool is_elsif = false;
 		if (string(src).find("else") == 1) {
@@ -243,21 +247,26 @@ static Stmt *decode_stmt(pTHX_ HV *stmt)
 	int block_id = SvIVX(get_value(stmt, "block_id"));
 	int start_line = SvIVX(get_value(stmt, "start_line"));
 	int end_line = SvIVX(get_value(stmt, "end_line"));
-	return new Stmt(src, token_num, indent, block_id, start_line, end_line);
+	int has_warnings = SvIVX(get_value(stmt, "has_warnings"));
+	return new Stmt(src, token_num, indent, block_id,
+					start_line, end_line, has_warnings);
 }
 
 static void setup_task(pTHX_ Task *decoded_task, HV *task)
 {
 	const char *filename = SvPVX(get_value(task, "filename"));
 	AV *stmts_ = (AV *)SvRV(get_value(task, "stmts"));
-	const char *cmd = SvPVX(get_value(task, "command"));
+	HV *command = (HV *)SvPVX(get_value(task, "command"));
+	const char *full_cmd = SvPVX(get_value(command, "full"));
+	const char *normal_cmd = SvPVX(get_value(command, "normal"));
 	SV **stmts = stmts_->sv_u.svu_array;
 	if (stmts) {
 		size_t stmts_size = av_len(stmts_);
 		for (size_t i = 0; i < stmts_size; i++) {
 			Stmt *stmt = decode_stmt(aTHX_ (HV *)SvRV(stmts[i]));
 			stmt->filename = filename;
-			stmt->cmd = cmd;
+			stmt->full_cmd = full_cmd;
+			stmt->normal_cmd = normal_cmd;
 			decoded_task->push_back(stmt);
 		}
 	}
