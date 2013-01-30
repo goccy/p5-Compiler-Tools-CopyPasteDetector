@@ -1,6 +1,8 @@
 package Compiler::Tools::CopyPasteDetector::DirectoryMetrics;
 use strict;
 use warnings;
+use List::Util qw(sum);
+use List::MoreUtils qw(any);
 use Data::Dumper;
 
 sub new {
@@ -52,8 +54,8 @@ sub get_another_directories_similarity_score {
     my ($self, $dirname) = @_;
     return $self->__get_ratio_of_target_token_to_all_token($dirname,
         sub {
-            my ($dirname, $filename) = @_;
-            return ($filename !~ $dirname || $filename eq "$dirname.pm") ? 1 : 0;
+            my ($value, $dirname, $from_names) = @_;
+            return any { $_ !~ "$dirname/" || $_ eq "$dirname.pm" } @$from_names;
         });
 }
 
@@ -61,8 +63,12 @@ sub get_self_similarity_score {
     my ($self, $dirname) = @_;
     return $self->__get_ratio_of_target_token_to_all_token($dirname,
         sub {
-            my ($dirname, $filename) = @_;
-            return ($filename =~ $dirname && $filename ne "$dirname.pm") ? 1 : 0;
+            my ($value, $dirname, $from_names) = @_;
+            return sum(map {
+                $value->{from_names}->{$_}
+            } grep {
+                $_ =~ "$dirname/" && $_ ne "$dirname.pm"
+            } @$from_names) > 1;
         });
 }
 
@@ -94,8 +100,14 @@ sub __get_ratio_of_target_token_to_all_token {
             next if exists $parents{$hash};
             next if exists $evaluated_hashs{$hash};
             my $value = $clones->{$hash};
-            foreach my $from_name (keys %{$value->{from_names}}) {
-                $token_num += $value->{from_names}->{$from_name} * $value->{token_num} if (&$cond($dirname, $from_name));
+            my @names = keys %{$value->{from_names}};
+            if (&$cond($value, $dirname, \@names)) {
+                my $count = sum map {
+                    $value->{from_names}->{$_}
+                } grep {
+                    $_ =~ "$dirname/" && $_ ne "$dirname.pm"
+                } @names;
+                $token_num += $count * $value->{token_num};
             }
             $evaluated_hashs{$hash}++;
         }

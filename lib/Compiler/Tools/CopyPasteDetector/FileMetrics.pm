@@ -1,6 +1,7 @@
 package Compiler::Tools::CopyPasteDetector::FileMetrics;
 use strict;
 use warnings;
+use List::MoreUtils qw(any);
 use Data::Dumper;
 
 sub new {
@@ -27,12 +28,20 @@ sub get_neighbor_score {
 
 sub get_another_files_similarity_score {
     my ($self) = @_;
-    return $self->__get_ratio_of_target_token_to_all_token(sub { shift == 1; });
+    return $self->__get_ratio_of_target_token_to_all_token(
+        sub {
+            my ($value, $filename, $from_names) = @_;
+            return any { $filename !~ $_ } @$from_names;
+        });
 }
 
 sub get_self_similarity_score {
     my ($self) = @_;
-    return $self->__get_ratio_of_target_token_to_all_token(sub { shift > 1; });
+    return $self->__get_ratio_of_target_token_to_all_token(
+        sub {
+            my ($value, $filename, $from_names) = @_;
+            return $value->{from_names}->{$filename} > 1;
+        });
 }
 
 sub get_coverage_score {
@@ -52,8 +61,11 @@ sub __get_ratio_of_target_token_to_all_token {
     foreach my $hash (keys %$clones) {
         next if exists $parents{$hash};
         my $value = $clones->{$hash};
-        my $count = $value->{from_names}->{$filename};
-        $token_num += $count * $value->{token_num} if (&$cond($count));
+        my @names = keys %{$value->{from_names}};
+        if (&$cond($value, $filename, \@names)) {
+            my $count = $value->{from_names}->{$filename};
+            $token_num += $count * $value->{token_num};
+        }
     }
     my $all_token_num = $self->{info}->{all_token_num};
     return ($all_token_num > 0) ? $token_num / $all_token_num * 100 : 0;
