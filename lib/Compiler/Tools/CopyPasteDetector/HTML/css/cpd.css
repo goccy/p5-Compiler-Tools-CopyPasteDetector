@@ -4,7 +4,6 @@ body, html {
     height: 100%;
     min-width: 1400px;
     margin: 0px;
-    /*zoom: 80%;*/
 }
 
 .cpd-hidden-location {
@@ -33,13 +32,13 @@ body, html {
     -moz-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
     -webkit-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
     box-shadow: 0 0 0 4px #fffff8, 1px 1px 6px 3px rgba(10,10,0,.5);
-    zoom: 70%;
+    font-size: 12px;
 }
 
 .cpd-subtitle {
     position: relative;
     font-family: Helvetica, sans-serif;
-    font-size: 16px;
+    font-size: 12px;
     color: #c9c9c9;
     display: block;
     padding-left: 30px;
@@ -65,7 +64,6 @@ body, html {
 
 .cpd-file-tree-area {
     position: absolute;
-    /*position: relative;*/
     vertical-align: top;
     display: inline-block;
     width: 24%;
@@ -74,12 +72,11 @@ body, html {
 
 .cpd-file-tree-area h3 {
     padding-left: 30px;
-    font-size: 16px;
+    font-size: 12x;
 }
 
 .cpd-main-menu-area {
     position: absolute;
-    /*position: relative;*/
     left: 24%;
     vertical-align: top;
     display: inline-block;
@@ -101,6 +98,7 @@ body, html {
     box-shadow: 0 0 0 4px #fffff8, 1px 1px 6px 3px rgba(10,10,0,.5);
     z-index:1;
     overflow-x: hidden;
+    white-space: nowrap;
 }
 
 .cpd-filter-box {
@@ -112,8 +110,8 @@ body, html {
 
 .cpd-filter-box input {
     width: 200px;
-    height: 20px;
-    font-size: 16px;
+    height: 14px;
+    font-size: 12px;
     -moz-box-shadow:inset 2px 2px 5px #ccc;
     border: 1px solid #b8b8b8;
 	border-radius: 3px;
@@ -189,7 +187,7 @@ body, html {
 
 .cpd-main-table th {
     background-color: #dcdcdc;
-    font-size: 20px;
+    font-size: 12px;
     -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
     -moz-box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
     box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
@@ -223,11 +221,8 @@ body, html {
 	position:absolute;
 	z-index:100;
     overflow: auto;
+    font-size: 12px;
 	background-color:white;
-}
-
-.popup-window div {
-
 }
 
 .detail-contents {
