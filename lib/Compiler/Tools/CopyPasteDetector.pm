@@ -375,6 +375,8 @@ sub __make_command {
         !exists $INC{$_} && !exists $core_modules->{$_}
     } map {
         my $tmp = $_->{name}; $tmp =~ s|::|/|g; "$tmp.pm";
+    } grep {
+        $_->{name} !~ /^[\d|\.]+/
     } @$modules;
     if (@error_modules) {
         warn sprintf("Can't locate %s\n", join(', ', @error_modules));
@@ -417,6 +419,7 @@ sub __parallel_detect {
         }
         push(@prepare, {filename => $filename, stmts => $$stmts, command => $cmd});
     }
+    print "detecting...\n";
     my $deparsed_stmts = get_deparsed_stmts_by_xs_parallel(\@prepare, $self->{jobs});
     return $$deparsed_stmts;
 }
