@@ -208,6 +208,7 @@ body, html {
     box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
 }
 
+/*
 .cpd-main-table tr:hover {
     background: #afeeee;
     -o-transition: all 0.1s ease-in-out;
@@ -216,7 +217,7 @@ body, html {
     -ms-transition: all 0.1s ease-in-out;
     transition: all 0.1s ease-in-out;
 }
-
+*/
 .popup-window {
 	position:absolute;
 	z-index:100;

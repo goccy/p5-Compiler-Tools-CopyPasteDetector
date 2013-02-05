@@ -86,3 +86,21 @@ sub read_record {
 }
 
 1;
+
+
+=Schema
+
+CREATE TABLE `copy_and_paste_record` (
+    `file` varchar(255) NOT NULL,
+    `lines` int(10) NOT NULL DEFAULT '0',
+    `start_line` int(10) NOT NULL DEFAULT '0',
+    `end_line` int(10) NOT NULL DEFAULT '0',
+    `src` text NOT NULL,
+    `hash` varchar(255) NOT NULL,
+    `parents` text NOT NULL,
+    `revision` varchar(255) NOT NULL,
+    `token_num` int(10) NOT NULL DEFAULT '0',
+    PRIMARY KEY(`file`, `start_line`, `end_line`, `hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf-8;
+
+=cut
