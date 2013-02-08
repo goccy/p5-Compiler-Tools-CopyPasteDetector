@@ -39,26 +39,32 @@
         <td class="cpd-score">${score}</td>
         {{if capacity_over}}
         <td class="cpd-hit">
-          <div class="${hash}">detail</div>
+          <div class="detail" data-hash="${hash}">detail</div>
           <ul>{{tmpl(short_location) "#short_location_tmpl"}}<li>.....</li></ul>
           <div class="cpd-hidden-location">
-            <div class="${hash}">detail</div>
+            <div class="detail" data-hash="${hash}">detail</div>
             <ul>{{tmpl(location) "#location_tmpl"}}</ul>
           </div>
         </td>
         {{else}}
-        <td class="cpd-location"><div class="${hash}">detail</div><ul>{{tmpl(location) "#location_tmpl"}}</ul></td>
+        <td class="cpd-location"><div class="detail" data-hash="${hash}">detail</div><ul>{{tmpl(location) "#location_tmpl"}}</ul></td>
         {{/if}}
         <td class="cpd-src"><pre class="${classname}"><code>${src}</code></pre></td>
       </tr>
     </script>
     <script id="short_location_tmpl" type="text/x-jquery-tmpl">
-      <li>${file} : ${start_line} ~ ${end_line}</li>
+      <li><div class="file-navigation">${file}</div><span> : ${start_line} ~ ${end_line}</span></li>
     </script>
     <script id="location_tmpl" type="text/x-jquery-tmpl">
-      <li>${file} : ${start_line} ~ ${end_line}</li>
+      <li><div class="file-navigation">${file}</div><span> : ${start_line} ~ ${end_line}</span></li>
     </script>
     <script id="file_metrics_table_tmpl" type="text/x-jquery-tmpl">
+      <tr>
+        <td class="cpd-score">${score}</td>
+        <td class="cpd-name"><div class="file-navigation">${name}</div></td>
+      </tr>
+    </script>
+    <script id="directory_metrics_table_tmpl" type="text/x-jquery-tmpl">
       <tr>
         <td class="cpd-score">${score}</td>
         <td class="cpd-name">${name}</td>

@@ -155,12 +155,12 @@ body, html {
     text-decoration: underline;
 }
 
-.cpd-location div {
-    color: blue;
+.file-navigation,.detail {
+    color: #0000cd;
     text-decoration: underline;
 }
 
-.cpd-hit div:hover {
+.file-navigation,.detail:hover {
     cursor: pointer;
 }
 
