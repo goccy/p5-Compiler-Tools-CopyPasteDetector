@@ -12,6 +12,7 @@ GetOptions(
     't|min-token-num=s'      => \$options->{min_token_num},
     'l|min-line-num=s'       => \$options->{min_line_num},
     'e|encoding=s'           => \$options->{encoding},
+    'o|output-dir=s'         => \$options->{output_dirname},
     'order-by=s'             => \$options->{order_by},
     'help'                   => \$options->{help}
 );
@@ -19,7 +20,6 @@ GetOptions(
 pod2usage(1) if $options->{help};
 my $project_root = $ARGV[0];
 defined $project_root or die "please define 'project root'\n";
-unshift @INC, $project_root;
 my $detector = Compiler::Tools::CopyPasteDetector->new($options);
 my $files = $detector->get_target_files_by_project_root($project_root);
 my $data = $detector->detect($files);
@@ -54,6 +54,10 @@ change threshold to detect code clones (default: 4)
 =item -e, --encoding=<encoding style>
 
 set encoding of target files for visualizer (default: none)
+
+=item -o, --output-dir=<directory's name>
+
+change the output directory (default: copy_paste_detector_output)
 
 =item --order-by=<length|population|radius|nif>
 

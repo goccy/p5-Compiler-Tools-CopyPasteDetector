@@ -51,6 +51,7 @@ sub new {
     my $jobs    = $options->{jobs};
     my $ignore  = $options->{ignore_variable_name};
     my $encoding = $options->{encoding};
+    my $output_dirname = $options->{output_dirname} || 'copy_paste_detector_output';
     my @order_by_list = qw(length population kind_of_token radius nif);
     my $checked_order = $order if (defined $order && grep {$_ eq $order} @order_by_list);
     my $self = {
@@ -61,7 +62,8 @@ sub new {
         jobs                 => $jobs || 1,
         ignore_variable_name => $ignore || 0,
         order_by             => $checked_order || $DEFAULT_ORDER_NAME,
-        encoding             => $encoding
+        encoding             => $encoding,
+        output_dirname       => $output_dirname
     };
     return bless($self, $class);
 }
@@ -178,7 +180,7 @@ sub gen_html {
     my ($self, $score) = @_;
     my $library_path = $INC{"Compiler/Tools/CopyPasteDetector.pm"};
     $library_path =~ s/\.pm//;
-    my $output_dir = "copy_paste_detector_output";
+    my $output_dir = $self->{output_dirname};
     mkdir($output_dir);
     rcopy($library_path . "/HTML", $output_dir);
     my $file_score = $score->{file_score};

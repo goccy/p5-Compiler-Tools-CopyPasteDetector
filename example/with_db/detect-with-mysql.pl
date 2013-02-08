@@ -13,11 +13,12 @@ GetOptions(
     't|min-token-num=s'      => \$options->{min_token_num},
     'l|min-line-num=s'       => \$options->{min_line_num},
     'e|encoding=s'           => \$options->{encoding},
+    'o|output-dir=s'         => \$options->{output_dirname},
     'order-by=s'             => \$options->{order_by},
     'h|host=s'               => \$options->{host},
-    'p|port=s'               => \$options->{port},
+    'P|port=s'               => \$options->{port},
     'u|user=s'               => \$options->{user},
-    'pass=s'                 => \$options->{pass},
+    'p|password=s'           => \$options->{pass},
     'd|database=s'           => \$options->{database},
     'help'                   => \$options->{help}
 );
@@ -56,7 +57,7 @@ $detector->gen_html($score);
 
 set hostname for mysql server (default: 'localhost')
 
-=item -p, --port=<port number>
+=item -P, --port=<port number>
 
 set port number for mysql server (default: '')
 
@@ -64,7 +65,7 @@ set port number for mysql server (default: '')
 
 set username for mysql server (default: 'root')
 
-=item --pass=<password>
+=item -p,  --password=<password>
 
 set password for mysql server (default: '')
 
@@ -91,6 +92,10 @@ change threshold to detect code clones (default: 4)
 =item -e, --encoding=<encoding style>
 
 set encoding of target files for visualizer (default: none)
+
+=item -o, --output-dir=<directory's name>
+
+change the output directory (default: copy_paste_detector_output)
 
 =item --order-by=<length|population|radius|nif>
 
