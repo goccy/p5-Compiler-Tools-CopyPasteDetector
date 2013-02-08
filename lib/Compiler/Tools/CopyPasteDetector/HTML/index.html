@@ -14,17 +14,13 @@
       <h3>CopyPasteDetector Results</h3>
     </div>
     <div class="cpd-main">
-      <div class="cpd-file-tree-area">
-        <div class="cpd-file-tree-wrapper">
-          <div class="cpd-file-tree"></div>
-        </div>
-      </div>
       <div class="cpd-main-menu-area">
         <div class="cpd-subtitle">
           <span id="clone_set_metrics"><h3>clone set metrics</h3></span>
           <span id="file_metrics"><h3>file metrics</h3></span>
           <span id="directory_metrics"><h3>directory metrics</h3></span>
           <span id="scattergram"><h3>scattergram</h3></span>
+          <span id="filetree"><h3>file tree</h3></span>
           <span class="cpd-filter-box"><input type="text"></input></span>
         </div>
         <div class="cpd-main-table-area">
@@ -91,8 +87,8 @@
       <table class="cpd-main-table">
         <colgroup width="100">
           <col width="10">
-          <col width="30">
-          <col width="60">
+          <col width="35">
+          <col width="55">
         </colgroup>
         <tr>
           <th class="cpd-score-head">${score}</th>
@@ -112,6 +108,13 @@
           <th class="cpd-location-head">name</th>
         </tr>
       </table>
+    </script>
+    <script id="file_tree_tmpl" type="text/x-jquery-tmpl">
+      <div class="cpd-file-tree-area">
+        <div class="cpd-file-tree-wrapper">
+          <div class="cpd-file-tree"></div>
+        </div>
+      </div>
     </script>
     <script type="text/javascript" src="js/lib/jquery.js"></script>
     <script type="text/javascript" src="js/lib/jquery.snippet.min.js"></script>

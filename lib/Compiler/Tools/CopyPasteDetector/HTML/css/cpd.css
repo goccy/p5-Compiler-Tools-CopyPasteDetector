@@ -37,11 +37,12 @@ body, html {
 
 .cpd-subtitle {
     position: relative;
+    text-align: center;
     font-family: Helvetica, sans-serif;
     font-size: 11px;
     color: #c9c9c9;
     display: block;
-    padding-left: 30px;
+    left: 100px;
 }
 
 .selected {
@@ -62,25 +63,13 @@ body, html {
     text-decoration: underline;
 }
 
-.cpd-file-tree-area {
-    position: absolute;
-    vertical-align: top;
-    display: inline-block;
-    width: 24%;
-    top: 40px;
-}
-
-.cpd-file-tree-area h3 {
-    padding-left: 30px;
-    font-size: 11;
-}
-
 .cpd-main-menu-area {
-    position: absolute;
-    left: 24%;
+    position: relative;
+    text-align: center;
     vertical-align: top;
     display: inline-block;
-    width: 75%;
+    left: 2.5%;
+    width: 95%;
 }
 
 .cpd-name {
@@ -88,16 +77,31 @@ body, html {
     height: 50px;
 }
 
+
+.cpd-file-tree-area {
+    position: relative;
+    vertical-align: top;
+    display: inline-block;
+    width: 100%;
+}
+
+.cpd-file-tree-area h3 {
+    padding-left: 30px;
+    font-size: 11;
+}
+
 .cpd-file-tree-wrapper {
     position: relative;
+    text-align: left;
     margin-top: 30px;
     margin-left: 10px;
+/*
     background-color: #fffff8;
     -moz-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
     -webkit-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
     box-shadow: 0 0 0 4px #fffff8, 1px 1px 6px 3px rgba(10,10,0,.5);
     z-index:1;
-    overflow-x: hidden;
+*/
     white-space: nowrap;
 }
 
@@ -105,7 +109,8 @@ body, html {
     position: relative;
     float: right;
     top: 20px;
-    left: -30px;
+    left: -100px;
+
 }
 
 .cpd-filter-box input {
