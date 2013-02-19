@@ -1,6 +1,7 @@
 #! /usr/bin/env perl
 use strict;
 use warnings;
+use FindBin::libs;
 use CopyPasteDetector::Extension::RoutineExecutor;
 use Getopt::Long;
 use Pod::Usage;
@@ -29,14 +30,15 @@ pod2usage(1) if $options->{help};
 
 sub get_observe_namespaces {
     return [
-        'lib/Mojolicious',
-        'lib/Catalyst',
-        'lib/Mojo'
+        'example/projects/lib/Mojolicious',
+        'example/projects/lib/Catalyst',
+        'example/projects/lib/Mojo'
     ];
 }
 
 sub main {
     my $executor = CopyPasteDetector::Extension::RoutineExecutor->new($options);
+    $executor->set_root('example/projects/lib/');
     $executor->set_observe_namespaces(get_observe_namespaces());
     $executor->run();
 }
