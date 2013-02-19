@@ -1,5 +1,4 @@
 package Catalyst;
-
 use Moose;
 use Moose::Meta::Class ();
 extends 'Catalyst::Component';
