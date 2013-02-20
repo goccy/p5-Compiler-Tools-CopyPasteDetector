@@ -5,6 +5,7 @@ use strict;
 use warnings;
 
 ### =================== Exporter ======================== ###
+
 require Exporter;
 our @ISA = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw() ] );
@@ -32,6 +33,8 @@ use Compiler::Tools::CopyPasteDetector::FileMetrics;
 use Compiler::Tools::CopyPasteDetector::DirectoryMetrics;
 use Compiler::Tools::CopyPasteDetector::Scattergram;
 use constant DEBUG => 1;
+use List::MoreUtils qw(any);
+
 ### ================== Constants ======================== ###
 
 # B::Deparse's BUG [1; => '???';]
@@ -40,6 +43,7 @@ my $MAX_ROW_NUM_PER_PAGE = 100;
 my $DEFAULT_MIN_LINE_NUM = 4;
 my $DEFAULT_MIN_TOKEN_NUM = 30;
 my $DEFAULT_ORDER_NAME = 'length';
+
 ### ================ Public Methods ===================== ###
 
 sub new {
@@ -104,7 +108,7 @@ sub get_score {
     foreach my $clone_set (values %$clone_set_map) {
         my @clones = @$clone_set;
         my $hit = scalar @$clone_set;
-        next if ($hit <= 0 || $self->__is_exists_parents($clone_set));
+        next if ($hit < 2 || $self->__exists_parents($clone_set));
         my $first_clone = $clone_set->[0];
         next unless ($first_clone->{lines} + 1 >= $min_line_num && $first_clone->{token_num} > $min_token_num);
         $self->__set_neighbor_name($clone_set);
@@ -167,12 +171,15 @@ sub display {
     my $clone_set_score = $score->{clone_set_score};
     foreach my $data (@$clone_set_score) {
         my $clone_set = $data->{set};
-        print "\n\tscore    : $data->{score}\n\tlocation : [";
-        foreach (@$clone_set) {
-            print "$_->{file}, ($_->{start_line} ~ $_->{end_line}), ";
-        }
-        my $src = decode_base64($clone_set->[0]->{src});
-        print "]\n\tsrc      : ${src}\n";
+        my $score = $data->{score};
+        my $location = join(', ', map { "$_->{file} ($_->{start_line} ~ $_->{end_line})" } @$clone_set);
+        my $src = join("\n" . " " x 19, split(/\n/, decode_base64($clone_set->[0]->{src})));
+        print <<DISPLAY;
+        score    : $score
+        location : $location
+        src      : $src
+
+DISPLAY
     }
 }
 
@@ -531,30 +538,27 @@ sub __add_stmt {
     push(@$deparsed_stmts, @tmp_deparsed_stmts);
 }
 
-sub __match_parents_hash {
-    my ($self, $from_parents, $to_parents) = @_;
-    my $ret = 0;
-    foreach my $from (@$from_parents) {
-        if (grep { $from eq $_ } @$to_parents) {
-            $ret = 1;
-            last;
-        }
-    }
-    return $ret;
-}
-
-sub __is_exists_parents {
+sub __exists_parents {
     my ($self, $matched_values) = @_;
-    my @matched_values = @$matched_values;
-    my @copied_matched_values = @matched_values;
+    my %parents_hashmap;
+    my $uniq_prefix = 0;
+    foreach my $value (@$matched_values) {
+        my $name = "$uniq_prefix\_" . $value->{hash};
+        $parents_hashmap{$name} = +{};
+        $value->{uniq_name} = $name;
+        $uniq_prefix++;
+    }
+    foreach my $key (keys %parents_hashmap) {
+        $parents_hashmap{$key}->{$_}++ foreach map {
+            @{$_->{parents}};
+        } grep {
+            $_->{uniq_name} ne $key
+        } @$matched_values;
+    }
     my $ret = 1;
-    foreach my $v (@matched_values) {
-        foreach (@copied_matched_values) {
-            my @from_parents = @{$v->{parents}};
-            my @to_parents = @{$_->{parents}};
-            next if ($v == $_);
-            $ret = 0 unless ($self->__match_parents_hash(\@from_parents, \@to_parents));
-        }
+    foreach my $value (@$matched_values) {
+        my $parents_map = $parents_hashmap{$value->{uniq_name}};
+        $ret = 0 unless (any { exists $parents_map->{$_} } @{$value->{parents}});
     }
     return $ret;
 }
