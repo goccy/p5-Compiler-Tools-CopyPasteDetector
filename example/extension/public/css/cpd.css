@@ -10,18 +10,17 @@ li {
     list-style: none;
 }
 
-.cpd-hidden-location {
-    display:none;
-}
-
 .cpd-header h3 {
+    padding-top: 20px;
     text-align: center;
 }
 
 .cpd-main {
     position: relative;
     width: 96%;
-    min-height: 90%;
+    min-width: 1400px;
+    min-height: 80%;
+    margin-bottom: 30px;
     display: block;
     position: relative;
     margin-left:auto;
@@ -42,11 +41,10 @@ li {
 .cpd-subtitle {
     position: relative;
     text-align: center;
-    font-family: Helvetica, sans-serif;
     font-size: 11px;
+    font-family: Helvetica, sans-serif;
     color: #c9c9c9;
     display: block;
-    left: 100px;
 }
 
 .selected {
@@ -76,108 +74,101 @@ li {
     width: 95%;
 }
 
-.cpd-name {
+#namespace-list-area {
+    position: relative;
+    display: inline-block;
+    padding: 30px;
+    width: 300px;
+    overflow-x: auto;
+}
+
+#timestamp-list-area {
+    position: relative;
+    display: inline-block;
+    padding: 30px;
+    width: 300px;
+    overflow-x: auto;
+}
+
+#namespace-list-area div:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+#timestamp-list-area div:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+#ranking-title {
+    text-align: center;
+}
+
+.cpd-border-line {
+    position: relative;
+    text-align: center;
+    height: 1px;
+    color: black;
+    border: solid #3cb371;
+    opacity: 0.5;
+    padding-bottom: 30px;
+    border-bottom: medium;
+    border-left: none;
+    border-right: none;
+}
+
+#namespace {
+    position: relative;
+    vertical-align: top;
+    display: inline-block;
     width: 70%;
-    height: 50px;
+    /*width: 1000px;*/
 }
 
-
-.cpd-file-tree-area {
+.cpd-table-area {
     position: relative;
     vertical-align: top;
     display: inline-block;
-    width: 100%;
+    width: 70%;
 }
 
-.cpd-file-tree-area h3 {
-    padding-left: 30px;
-    font-size: 11;
+#namespace-title {
+    text-align: center;
 }
 
-.cpd-file-tree-wrapper {
+.cpd-graph {
     position: relative;
-    text-align: left;
-    margin-top: 30px;
-    margin-left: 10px;
-/*
-    background-color: #fffff8;
-    -moz-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
-    -webkit-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
-    box-shadow: 0 0 0 4px #fffff8, 1px 1px 6px 3px rgba(10,10,0,.5);
-    z-index:1;
-*/
-    white-space: nowrap;
-}
-
-.cpd-filter-box {
-    position: relative;
-    float: right;
-    top: 20px;
-    left: -100px;
-
-}
-
-.cpd-filter-box input {
-    width: 200px;
-    height: 14px;
-    font-size: 11px;
-    -moz-box-shadow:inset 2px 2px 5px #ccc;
-    border: 1px solid #b8b8b8;
-	border-radius: 3px;
-    -webkit-border-radius: 3px;
-    -moz-border-radius: 3px;
-    outline: 0; /* cut auto focus */
-}
-
-.cpd-filter-box input[type="text"]:focus {
-    border: 1px solid #aae472;
-    box-shadow: 0px 0px 10px #aae472;
-}
-
-.cpd-main-table-wrapper {
-    position: relative;
-    vertical-align: top;
+    text-align: center;
+    padding: 10px;
+    width: 47%;
     display: inline-block;
-    width: 100%;
+    vertical-align: top;
 }
 
-.cpd-main-table {
+#ranking-contents {
+    text-align: center;
+}
+
+#ranking-contents div {
+    position: relative;
+    text-align: center;
+    padding: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.cpd-table {
     table-layout: fixed;
     overflow: auto;
-    width: 100%;
 }
 
-.cpd-hit {
-    overflow-x: auto;
-}
-
-.cpd-location {
-    overflow-x: auto;
-}
-.cpd-hit div {
-    color: blue;
-    text-decoration: underline;
-}
-
-.file-navigation,.detail {
-    color: #0000cd;
-    text-decoration: underline;
-}
-
-.file-navigation,.detail:hover {
-    cursor: pointer;
-}
-
-.cpd-location div:hover {
-    cursor: pointer;
-}
-
-.cpd-main-table td, th {
+.cpd-table td, th {
     border: 1px #f0f8ef solid; 
 }
 
-.cpd-main-table * {
+.cpd-table * {
     position: relative;
+    font-size: 13px;
     *border-collapse: collapse;
     font-family: Helvetica, sans-serif;
     border-style: none;
@@ -187,14 +178,14 @@ li {
     text-align: center;
 }
 
-.cpd-main-table pre * {
+.cpd-table pre * {
     *border-collapse: collapse;
     border-spacing: 0;
     padding-left: 0px;
     padding-right: 0px;
 }
 
-.cpd-main-table th {
+.cpd-table th {
     background-color: #dcdcdc;
     font-size: 11px;
     -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
@@ -203,30 +194,20 @@ li {
     border-top: none;
 }
 
-.cpd-main-table tr:nth-child(even) {
+.cpd-table tr:nth-child(even) {
     background: #f0f8ef;
     -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
     -moz-box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
     box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
 }
 
-.cpd-main-table tr:nth-child(odd) {
+.cpd-table tr:nth-child(odd) {
     background-color: #fffff8;
     -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
     -moz-box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
     box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
 }
 
-/*
-.cpd-main-table tr:hover {
-    background: #afeeee;
-    -o-transition: all 0.1s ease-in-out;
-    -webkit-transition: all 0.1s ease-in-out;
-    -moz-transition: all 0.1s ease-in-out;
-    -ms-transition: all 0.1s ease-in-out;
-    transition: all 0.1s ease-in-out;
-}
-*/
 .popup-window {
 	position:absolute;
 	z-index:100;
@@ -268,26 +249,9 @@ li {
 	background-color:black;
 }
 
-/*
-ul {
-    white-space: pre;
-    white-space: pre-wrap;
-    white-space: pre-line;
-    white-space: -pre-wrap;
-    white-space: -o-pre-wrap;
-    white-space: -moz-pre-wrap;
-    white-space: -hp-pre-wrap;
-    word-wrap: break-word;
-}
-*/
-
-.cpd-src * {
-    text-align: left;
-}
-
 #footer {
     position: relative;
-    height: 80px;
+    height: 100px;
     width: 100%;
     color: white;
     font-size: 14px;
@@ -297,7 +261,7 @@ ul {
 #footer p {
     position:relative;
     text-align: center;
-    top: 30px;
+    top: 40px;
 }
 
 .metrics-tab-group {
@@ -319,4 +283,3 @@ ul {
     color: #fff;
     background-color: #c3c3c3;
 }
-

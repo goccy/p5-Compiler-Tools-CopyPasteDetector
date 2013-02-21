@@ -22,7 +22,6 @@ GetOptions(
     'd|database=s'           => \$options->{database},
     'help'                   => \$options->{help}
 );
-
 pod2usage(1) if $options->{help};
 my $project_root = $ARGV[0];
 defined $project_root or die "please define 'project root'\n";
@@ -36,11 +35,13 @@ foreach my $file (@$files) {
         push(@not_evaluated_files, $file);
     }
 }
+
 if (@not_evaluated_files) {
     my $record = $detector->detect(\@not_evaluated_files);
     $detector->insert_record($record);
     push(@data, @$record);
 }
+
 my $score = $detector->get_score(\@data);
 $detector->display($score);
 $detector->gen_html($score);

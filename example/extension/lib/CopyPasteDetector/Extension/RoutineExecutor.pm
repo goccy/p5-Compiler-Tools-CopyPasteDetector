@@ -203,7 +203,7 @@ sub exec_copy_paste_detector {
         my $metrics = $directory_score->{$name}->{metrics};
         eval {
             $self->{db}->insert('routine_record', {
-                file       => $name,
+                namespace  => $name,
                 coverage   => $metrics->{coverage},
                 another_directories_similarity => $metrics->{another_directories_similarity},
                 self_similarity => $metrics->{self_similarity},
@@ -250,12 +250,12 @@ CREATE TABLE IF NOT EXISTS `copy_and_paste_record` (
 
 @@ routine_record_table
 CREATE TABLE IF NOT EXISTS `routine_record` (
-    `file` varchar(255) NOT NULL,
+    `namespace` varchar(255) NOT NULL,
     `coverage` float(7,6) NOT NULL DEFAULT '0',
     `another_directories_similarity` float(7,6) NOT NULL DEFAULT '0',
     `self_similarity` float(7,6) NOT NULL DEFAULT '0',
     `neighbor` float(7,6) NOT NULL DEFAULT '0',
     `created_at` datetime NOT NULL,
     `revision` varchar(255) NOT NULL,
-    PRIMARY KEY(`file`, `revision`)
+    PRIMARY KEY(`namespace`, `revision`)
 ) ENGINE=InnoDB;

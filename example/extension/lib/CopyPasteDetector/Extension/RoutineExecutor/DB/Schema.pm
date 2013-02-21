@@ -17,8 +17,8 @@ install_table copy_and_paste_record => schema {
 };
 
 install_table routine_record => schema {
-    pk qw/file revision/;
-    columns qw/file
+    pk qw/namespace revision/;
+    columns qw/namespace
                coverage
                another_directories_similarity
                self_similarity

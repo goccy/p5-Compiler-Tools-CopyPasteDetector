@@ -1,3 +1,4 @@
+
 package CopyPasteDetector;
 use strict;
 use warnings;
@@ -33,6 +34,7 @@ sub insert_record {
     my ($self, $all_data) = @_;
     my $rev = '';
     foreach my $data (@$all_data) {
+        eval {
         $self->{db}->insert('copy_and_paste_record', {
             file       => $data->{file},
             lines      => $data->{lines},
@@ -44,6 +46,8 @@ sub insert_record {
             parents    => encode_json($data->{parents}),
             revision   => ''
         });
+        };
+        print $@ if ($@);
     }
 }
 

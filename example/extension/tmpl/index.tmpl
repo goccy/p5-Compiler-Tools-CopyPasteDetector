@@ -1,0 +1,54 @@
+<!DOCTYPE htm>
+<html>
+  <head><TMPL_INCLUDE name="header.tmpl"></head>
+  <body>
+    <TMPL_INCLUDE name="body_header.tmpl">
+    <div class="cpd-main">
+      <div class="cpd-main-menu-area">
+        <div class="cpd-subtitle">
+          <span id="home" data-name="home"><h3>Home</h3></span>
+          <span id="coverage" data-name="coverage"><h3>Coverage</h3></span>
+          <span id="another_directories_similarity" data-name="ads"><h3>Another Directories Similarity</h3></span>
+          <span id="self_similarity" data-name="ss"><h3>Self Similarity</h3></span>
+          <span id="neighbor" data-name="neighbor"><h3>Neighbor</h3></span>
+        </div>
+      </div>
+      <div id="namespace-list-area">
+        <ul>
+          <TMPL_LOOP NAME=namespace_list>
+            <li><div data-name='<TMPL_VAR NAME=name>'><h3><TMPL_VAR NAME=name></h3></div></li>
+          </TMPL_LOOP>
+        </ul>
+      </div>
+      <div class="cpd-table-area">
+        <div id="ranking-title">
+          <h2>Recent Worst Ranking</h2>
+          <div class="cpd-border-line"></div>
+        </div>
+        <div id="ranking-contents">
+          <TMPL_LOOP NAME="ranking_contents">
+            <div id='worst_rank_<TMPL_VAR NAME=metrics_type>'>
+              <h2><TMPL_VAR NAME=metrics_type></h2>
+              <table class="cpd-table">
+                <tr>
+                  <th>Rank</th>
+                  <th>NameSpace</th>
+                  <th>Score</th>
+                </tr>
+                <TMPL_LOOP NAME=ranking>
+                  <tr>
+                    <td><TMPL_VAR NAME=rank></td>
+                    <td><TMPL_VAR NAME=namespace></td>
+                    <td><TMPL_VAR NAME=score></td>
+                  </tr>
+                </TMPL_LOOP>
+              </table>
+            </div>
+          </TMPL_LOOP>
+        </div>
+      </div>
+    </div>
+    <TMPL_INCLUDE name="body_footer.tmpl">
+    <script type="text/javascript" src="js/common.js"></script>
+  </body>
+</html>
