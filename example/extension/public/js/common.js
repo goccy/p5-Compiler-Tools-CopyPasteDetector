@@ -3,6 +3,10 @@ $(".cpd-subtitle span").on("click", function() {
     location.href = name;
 });
 
+$("#goto_detail").on("click", function() {
+    location.href = "detail";
+});
+
 $("#namespace-list-area div").on("click", function() {
     location.href = "namespace?" + "namespace=" + $(this).data("name");
 });

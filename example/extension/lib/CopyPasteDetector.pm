@@ -2,6 +2,7 @@ package CopyPasteDetector;
 use Mojo::Base 'Mojolicious';
 use CopyPasteDetector::Router;
 use CopyPasteDetector::Model;
+use Mojolicious::Plugin::Mount;
 
 # This method will run once at server start
 __PACKAGE__->attr(model => sub {
@@ -24,6 +25,10 @@ __PACKAGE__->attr(model => sub {
 sub startup {
   my $self = shift;
   # Documentation browser under "/perldoc"
+  push(@{$self->app->static->paths}, 'detail/public');
+  $self->plugin(Mount => {
+      '/detail' => 'detail/start.psgi'
+  });
   $self->plugin('PODRenderer');
   #$self->plugin('xslate_renderer');
   $self->routes->namespace('CopyPasteDetector::Controller');

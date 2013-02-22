@@ -6,32 +6,29 @@ body, html {
     margin: 0px;
 }
 
-li {
-    list-style: none;
-}
-
-.cpd-header h3 {
-    padding-top: 20px;
-    text-align: center;
-}
-
-#goto_detail {
+#goto_summary {
     position: absolute;
-    top: 20px;
+    top: 0px;
     left: 100px;
 }
 
-#goto_detail:hover {
+#goto_summary:hover {
     cursor: pointer;
     text-decoration: underline;
+}
+
+.cpd-hidden-location {
+    display:none;
+}
+
+.cpd-header h3 {
+    text-align: center;
 }
 
 .cpd-main {
     position: relative;
     width: 96%;
-    min-width: 1400px;
-    min-height: 80%;
-    margin-bottom: 30px;
+    min-height: 90%;
     display: block;
     position: relative;
     margin-left:auto;
@@ -52,10 +49,11 @@ li {
 .cpd-subtitle {
     position: relative;
     text-align: center;
-    font-size: 11px;
     font-family: Helvetica, sans-serif;
+    font-size: 11px;
     color: #c9c9c9;
     display: block;
+    left: 100px;
 }
 
 .selected {
@@ -85,101 +83,108 @@ li {
     width: 95%;
 }
 
-#namespace-list-area {
-    position: relative;
-    display: inline-block;
-    padding: 30px;
-    width: 300px;
-    overflow-x: auto;
-}
-
-#timestamp-list-area {
-    position: relative;
-    display: inline-block;
-    padding: 30px;
-    width: 300px;
-    overflow-x: auto;
-}
-
-#namespace-list-area div:hover {
-    cursor: pointer;
-    text-decoration: underline;
-}
-
-#timestamp-list-area div:hover {
-    cursor: pointer;
-    text-decoration: underline;
-}
-
-#ranking-title {
-    text-align: center;
-}
-
-.cpd-border-line {
-    position: relative;
-    text-align: center;
-    height: 1px;
-    color: black;
-    border: solid #3cb371;
-    opacity: 0.5;
-    padding-bottom: 30px;
-    border-bottom: medium;
-    border-left: none;
-    border-right: none;
-}
-
-#namespace {
-    position: relative;
-    vertical-align: top;
-    display: inline-block;
+.cpd-name {
     width: 70%;
-    /*width: 1000px;*/
+    height: 50px;
 }
 
-.cpd-table-area {
+
+.cpd-file-tree-area {
     position: relative;
     vertical-align: top;
     display: inline-block;
-    width: 70%;
+    width: 100%;
 }
 
-#namespace-title {
-    text-align: center;
+.cpd-file-tree-area h3 {
+    padding-left: 30px;
+    font-size: 11;
 }
 
-.cpd-graph {
+.cpd-file-tree-wrapper {
     position: relative;
-    text-align: center;
-    padding: 10px;
-    width: 47%;
-    display: inline-block;
-    vertical-align: top;
+    text-align: left;
+    margin-top: 30px;
+    margin-left: 10px;
+/*
+    background-color: #fffff8;
+    -moz-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
+    -webkit-box-shadow: 0 0 0 4px #fffff8, 1px 1px 4px 3px rgba(10,10,0,.5);
+    box-shadow: 0 0 0 4px #fffff8, 1px 1px 6px 3px rgba(10,10,0,.5);
+    z-index:1;
+*/
+    white-space: nowrap;
 }
 
-#ranking-contents {
-    text-align: center;
-}
-
-#ranking-contents div {
+.cpd-filter-box {
     position: relative;
-    text-align: center;
-    padding: 10px;
-    display: inline-block;
-    vertical-align: top;
+    float: right;
+    top: 20px;
+    left: -100px;
+
 }
 
-.cpd-table {
+.cpd-filter-box input {
+    width: 200px;
+    height: 14px;
+    font-size: 11px;
+    -moz-box-shadow:inset 2px 2px 5px #ccc;
+    border: 1px solid #b8b8b8;
+	border-radius: 3px;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    outline: 0; /* cut auto focus */
+}
+
+.cpd-filter-box input[type="text"]:focus {
+    border: 1px solid #aae472;
+    box-shadow: 0px 0px 10px #aae472;
+}
+
+.cpd-main-table-wrapper {
+    position: relative;
+    vertical-align: top;
+    display: inline-block;
+    width: 100%;
+}
+
+.cpd-main-table {
     table-layout: fixed;
     overflow: auto;
+    width: 100%;
 }
 
-.cpd-table td, th {
+.cpd-hit {
+    overflow-x: auto;
+}
+
+.cpd-location {
+    overflow-x: auto;
+}
+.cpd-hit div {
+    color: blue;
+    text-decoration: underline;
+}
+
+.file-navigation,.detail {
+    color: #0000cd;
+    text-decoration: underline;
+}
+
+.file-navigation,.detail:hover {
+    cursor: pointer;
+}
+
+.cpd-location div:hover {
+    cursor: pointer;
+}
+
+.cpd-main-table td, th {
     border: 1px #f0f8ef solid; 
 }
 
-.cpd-table * {
+.cpd-main-table * {
     position: relative;
-    font-size: 13px;
     *border-collapse: collapse;
     font-family: Helvetica, sans-serif;
     border-style: none;
@@ -189,14 +194,14 @@ li {
     text-align: center;
 }
 
-.cpd-table pre * {
+.cpd-main-table pre * {
     *border-collapse: collapse;
     border-spacing: 0;
     padding-left: 0px;
     padding-right: 0px;
 }
 
-.cpd-table th {
+.cpd-main-table th {
     background-color: #dcdcdc;
     font-size: 11px;
     -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
@@ -205,20 +210,30 @@ li {
     border-top: none;
 }
 
-.cpd-table tr:nth-child(even) {
+.cpd-main-table tr:nth-child(even) {
     background: #f0f8ef;
     -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
     -moz-box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
     box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
 }
 
-.cpd-table tr:nth-child(odd) {
+.cpd-main-table tr:nth-child(odd) {
     background-color: #fffff8;
     -webkit-box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
     -moz-box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
     box-shadow: 0 1px 0 rgba(255,255,255,.8) inset;
 }
 
+/*
+.cpd-main-table tr:hover {
+    background: #afeeee;
+    -o-transition: all 0.1s ease-in-out;
+    -webkit-transition: all 0.1s ease-in-out;
+    -moz-transition: all 0.1s ease-in-out;
+    -ms-transition: all 0.1s ease-in-out;
+    transition: all 0.1s ease-in-out;
+}
+*/
 .popup-window {
 	position:absolute;
 	z-index:100;
@@ -260,9 +275,26 @@ li {
 	background-color:black;
 }
 
+/*
+ul {
+    white-space: pre;
+    white-space: pre-wrap;
+    white-space: pre-line;
+    white-space: -pre-wrap;
+    white-space: -o-pre-wrap;
+    white-space: -moz-pre-wrap;
+    white-space: -hp-pre-wrap;
+    word-wrap: break-word;
+}
+*/
+
+.cpd-src * {
+    text-align: left;
+}
+
 #footer {
     position: relative;
-    height: 100px;
+    height: 80px;
     width: 100%;
     color: white;
     font-size: 14px;
@@ -272,7 +304,7 @@ li {
 #footer p {
     position:relative;
     text-align: center;
-    top: 40px;
+    top: 30px;
 }
 
 .metrics-tab-group {
@@ -294,3 +326,4 @@ li {
     color: #fff;
     background-color: #c3c3c3;
 }
+
