@@ -6,7 +6,7 @@ use Mojolicious::Plugin::Mount;
 
 # This method will run once at server start
 __PACKAGE__->attr(model => sub {
-    my $host = '';
+    my $host = 'localhost';
     my $port = '';
     my $user = 'root';
     my $pass = '';

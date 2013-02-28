@@ -36,10 +36,16 @@ sub get_observe_namespaces {
     ];
 }
 
+my $observe_revision_range = {
+    from => '9f4ec75333799c95a8435f5f738570b87a44452a',
+    to   => '8363245bce7a690f1fc6ed53da284f32c12dc3e8'
+};
+
 sub main {
     my $executor = CopyPasteDetector::Extension::RoutineExecutor->new($options);
     $executor->set_root('example/projects/lib/');
     $executor->set_observe_namespaces(get_observe_namespaces());
+    $executor->set_observe_revision_range($observe_revision_range);
     $executor->run();
 }
 

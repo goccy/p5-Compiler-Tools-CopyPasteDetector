@@ -4,7 +4,7 @@ use warnings;
 use Compiler::Tools::CopyPasteDetector;
 use CopyPasteDetector::Extension::RoutineExecutor::DB;
 use Data::Section::Simple qw(get_data_section);
-use List::MoreUtils qw(any before after);
+use List::MoreUtils qw(any before_incl after);
 use Data::Dumper;
 use JSON::XS;
 
@@ -19,7 +19,6 @@ sub new {
     my $dsn = sprintf('DBI:mysql:%s:%s:%s', $dbname, $host, $port);
     my $db = CopyPasteDetector::Extension::RoutineExecutor::DB->new(
         {dsn => $dsn, username => $user, password => $pass});
-    #my $sql = do { local $/; <DATA> };
     my $copy_and_paste_record_table = get_data_section('copy_and_paste_record_table');
     my $routine_record_table = get_data_section('routine_record_table');
     $db->dbh->do($copy_and_paste_record_table);
@@ -45,6 +44,11 @@ sub set_observe_namespaces {
     $self->{namespaces}->{$_}++ foreach (@$namespaces);
 }
 
+sub set_observe_revision_range {
+    my ($self, $range) = @_;
+    $self->{range} = $range;
+}
+
 sub fetch_latest_data_from_remote_repository {
     my ($self) = @_;
     my $repo = $self->{remote_repository};
@@ -59,12 +63,12 @@ sub exists_record {
     return ($count > 0) ? 1 : 0;
 }
 
-sub insert_record {
+sub update_record {
     my ($self, $all_data) = @_;
     my $rev = '';
     foreach my $data (@$all_data) {
         eval {
-            $self->{db}->insert('copy_and_paste_record', {
+            $self->{db}->update('copy_and_paste_record', {
                 file       => $data->{file},
                 lines      => $data->{lines},
                 start_line => $data->{start_line},
@@ -73,18 +77,9 @@ sub insert_record {
                 src        => $data->{src},
                 hash       => $data->{hash},
                 parents    => encode_json($data->{parents}),
-                revision   => ''
             });
         };
         print $@ if ($@);
-    }
-}
-
-sub insert_routine_record {
-    my ($self, $all_data) = @_;
-    my $rev = '';
-    foreach my $data (@$all_data) {
-
     }
 }
 
@@ -135,9 +130,14 @@ sub get_remote_all_revisions {
 
 sub get_next_revisions {
     my ($self) = @_;
-    my $rev = $self->get_current_revision();
+    my $rev = (defined $self->{range}) ? $self->{range}->{from} : $self->get_current_revision();
     my $all_revs = $self->get_remote_all_revisions();
-    return [reverse before { $rev eq $_ } @$all_revs];
+    return [reverse before_incl { $rev eq $_ } @$all_revs];
+}
+
+sub switch_revision {
+    my ($self, $rev) = @_;
+    return system("git checkout -b $rev $rev");
 }
 
 sub dump_current_database {
@@ -191,9 +191,11 @@ sub exec_copy_paste_detector {
         }
     }
     my @names = keys %not_evaluated_files;
-    my $record = $detector->detect(\@names);
-    $self->insert_record($record);
-    push(@data, @$record);
+    if (@names) {
+        my $record = $detector->detect(\@names);
+        $self->update_record($record);
+        push(@data, @$record);
+    }
     my $score = $detector->get_score(\@data);
     my $directory_score = $score->{directory_score};
     my @observe_names = grep {
@@ -224,10 +226,14 @@ sub run {
         die "cannot fetch from $self->{remote_repository} $self->{remote_branch}\n";
     my $next_revisions = $self->get_next_revisions();
     die 'Already up-to-date' unless (@$next_revisions);
+    my $end_revision = $self->{range}->{to};
     foreach my $rev (@$next_revisions) {
         my $files = $self->get_modified_filenames($rev);
+        $self->switch_revision($rev);
         #$self->dump_current_database($rev);
         $self->exec_copy_paste_detector($files, $rev);
+        print $rev, "\n";
+        last if (defined $end_revision && $end_revision eq $rev);
     }
 }
 
