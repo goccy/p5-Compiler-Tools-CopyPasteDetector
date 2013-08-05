@@ -385,7 +385,7 @@ sub __make_command {
     } map {
         my $tmp = $_->{name}; $tmp =~ s|::|/|g; "$tmp.pm";
     } grep {
-        $_->{name} !~ /^[\d|\.]+/
+        $_->{name} !~ /^v?[\d|\.]+/
     } @$modules;
     if (@error_modules) {
         warn sprintf("Can't locate %s\n", join(', ', @error_modules));
