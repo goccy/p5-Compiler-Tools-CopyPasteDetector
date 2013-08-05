@@ -122,7 +122,7 @@ sub get_score {
             my $file_point = $filemap->{$filename};
             unless (exists $file_point->{all_token_num}) {
                 my $all_tokens = Compiler::Lexer->new($filename)->tokenize($self->__get_script($filename));
-                $file_point->{token_num} = scalar @$$all_tokens;
+                $file_point->{token_num} = scalar @$all_tokens;
             }
             $file_point->{clone}->{$hash} = +{} if (!exists $file_point->{clone}->{$hash});
             my $clone_point = $file_point->{clone}->{$hash};
@@ -420,13 +420,13 @@ sub __parallel_detect {
         if ($self->{ignore_variable_name}) {
             $self->__ignore_orthographic_variation_of_variable_name($tokens);
         }
-        my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
+        my $stmts = $lexer->get_groups_by_syntax_level($tokens, Compiler::Lexer::SyntaxType::T_Stmt);
         my $modules = $lexer->get_used_modules($script);
         my $cmd = $self->__make_command($modules);
-        foreach my $stmt (@$$stmts) {
+        foreach my $stmt (@$stmts) {
             $stmt->{src} =~ s/'/'\\''/g;
         }
-        push(@prepare, {filename => $filename, stmts => $$stmts, command => $cmd});
+        push(@prepare, {filename => $filename, stmts => $stmts, command => $cmd});
     }
     print "detecting...\n";
     my $deparsed_stmts = get_deparsed_stmts_by_xs_parallel(\@prepare, $self->{jobs});
@@ -440,7 +440,7 @@ sub __get_stmt_data {
     if ($self->{ignore_variable_name}) {
         $self->__ignore_orthographic_variation_of_variable_name($tokens);
     }
-    my $stmts = $lexer->get_groups_by_syntax_level($$tokens, Compiler::Lexer::SyntaxType::T_Stmt);
+    my $stmts = $lexer->get_groups_by_syntax_level($tokens, Compiler::Lexer::SyntaxType::T_Stmt);
     my $modules = $lexer->get_used_modules($script);
     my $cmd = $self->__make_command($modules);
     my @deparsed_stmts;
