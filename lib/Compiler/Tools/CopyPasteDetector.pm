@@ -445,7 +445,7 @@ sub __get_stmt_data {
     my $cmd = $self->__make_command($modules);
     my @deparsed_stmts;
     my $tmp_file = $self->{tmp};
-    my @stmts = @$$stmts;
+    my @stmts = @$stmts;
     $self->{stmt_num_manager} = +{};
     foreach my $stmt (@stmts) {
         my $src = $stmt->{src};
