@@ -247,6 +247,37 @@ sub gen_html {
     close($fh);
 }
 
+sub gen_checkstyle_report {
+    my ($self, $score) = @_;
+    my $output_dir = $self->{output_dirname};
+    mkdir($output_dir);
+
+    my $checkstyle_source = q{com.puppycrawl.tools.checkstyle.checks.duplicates.StrictDuplicateCodeCheck};
+    my $err_file_fmt      = qq{<file name="%s">\n%s</file>\n};
+    my $err_line_fmt      = qq{<error line="%d" severity="%s" message="Found duplicate of %d lines in %s, starting from line %d" source="$checkstyle_source" />\n};
+    my $xml_header        = qq{<checkstyle version="5.6">\n};
+    my $xml_footer        = qq{</checkstyle>\n};
+
+    open(my $fh, '>', "$output_dir/checkstyle-result.xml");
+    print $fh $xml_header;
+
+    foreach my $data (@{$score->{clone_set_score}}) {
+        my $xml_flagment = '';
+        my $clone_set = $data->{set};
+        my $clone = $clone_set->[0];
+        for (my $i = 1; $i < @$clone_set; $i++) {
+            my $clone_i = $clone_set->[$i];
+            $xml_flagment
+                .= sprintf $err_line_fmt, $clone->{start_line}, 'warning',
+                $clone_i->{lines}, $clone_i->{file}, $clone_i->{start_line};
+        }
+        printf $fh $err_file_fmt, $clone->{file}, $xml_flagment;
+    }
+
+    print $fh $xml_footer;
+    close($fh);
+}
+
 ### ================ Private Methods ===================== ###
 
 sub __set_neighbor_name {
