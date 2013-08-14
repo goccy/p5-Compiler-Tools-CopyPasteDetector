@@ -8,4 +8,5 @@ on 'test' => sub {
     requires 'Test::More', 0.96;
     recommends 'YAML';
     recommends 'XML::Simple';
+    recommends 'Test::Exception';
 };
