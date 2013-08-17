@@ -389,7 +389,7 @@ sub __ignore_orthographic_variation_of_variable_name {
         Compiler::Lexer::TokenType::T_GlobalArrayVar,
         Compiler::Lexer::TokenType::T_GlobalHashVar
     );
-    foreach my $token (@$$tokens) {
+    foreach my $token (@$tokens) {
         if (grep { $_ == $token->{type} } @variables) {
             $token->{data} = substr($token->{data}, 0, 1) . "v";
         }
